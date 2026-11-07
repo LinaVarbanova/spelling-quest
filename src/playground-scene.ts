@@ -8,7 +8,7 @@ export const realmColors = [
   "#ffac7d",
   "#ffe19a",
 ];
-const palette = [
+export const palette = [
   ["#6bc8a0", "#66508e"],
   ["#817bca", "#514374"],
   ["#b5d9e9", "#7276a6"],
@@ -16,7 +16,7 @@ const palette = [
   ["#d57d70", "#73445f"],
   ["#b5e1d1", "#8576a4"],
 ];
-function material(color: string, emissive = false) {
+export function material(color: string, emissive = false) {
   return new THREE.MeshStandardMaterial({
     color,
     roughness: 0.48,
@@ -24,7 +24,7 @@ function material(color: string, emissive = false) {
     ...(emissive ? { emissive: color, emissiveIntensity: 0.55 } : {}),
   });
 }
-function mesh(
+export function mesh(
   parent: THREE.Group,
   geometry: THREE.BufferGeometry,
   color: string,
@@ -58,7 +58,7 @@ function box(g: THREE.Group, color: string, size: number[], p: number[]) {
     ...(p as [number, number, number]),
   );
 }
-function cone(
+export function cone(
   g: THREE.Group,
   color: string,
   r: number,
@@ -70,7 +70,7 @@ function cone(
 ) {
   return mesh(g, new THREE.ConeGeometry(r, h, sides), color, x, y, z);
 }
-function crystal(
+export function crystal(
   g: THREE.Group,
   color: string,
   x: number,
@@ -83,7 +83,13 @@ function crystal(
   c.rotation.z = x * 0.12;
   return c;
 }
-function tree(g: THREE.Group, x: number, z: number, s = 1, color = "#77cdb0") {
+export function tree(
+  g: THREE.Group,
+  x: number,
+  z: number,
+  s = 1,
+  color = "#77cdb0",
+) {
   const t = new THREE.Group();
   t.position.set(x, 0.2, z);
   t.scale.setScalar(s);
@@ -101,7 +107,7 @@ function tree(g: THREE.Group, x: number, z: number, s = 1, color = "#77cdb0") {
   ball(t, "#a1e3bb", 0.45, 0.36, 1.15, -0.05);
   return t;
 }
-function portal(g: THREE.Group, color: string, x = 0, z = 0) {
+export function portal(g: THREE.Group, color: string, x = 0, z = 0) {
   const arc = mesh(
     g,
     new THREE.TorusGeometry(0.67, 0.14, 8, 30),
@@ -133,7 +139,7 @@ function portal(g: THREE.Group, color: string, x = 0, z = 0) {
     );
   }
 }
-function tower(
+export function tower(
   g: THREE.Group,
   x: number,
   z: number,
@@ -152,7 +158,7 @@ function tower(
   cone(g, roof, 0.53, 0.85, x, h + 0.55, z);
   box(g, "#ffe2a1", [0.17, 0.28, 0.05], [x, h * 0.7, z + 0.38]);
 }
-function castle(g: THREE.Group, champion = false) {
+export function castle(g: THREE.Group, champion = false) {
   const body = champion ? "#eee8d3" : "#aaa2d5",
     roof = champion ? "#6ed5c7" : "#8768bb";
   box(g, body, [1.3, 1.1, 0.9], [0, 0.8, 0]);
@@ -188,7 +194,7 @@ function castle(g: THREE.Group, champion = false) {
     );
   } else ball(g, "#f4d5ff", 0.35, 1.35, 2.7, -0.9);
 }
-function dragon(g: THREE.Group) {
+export function dragon(g: THREE.Group) {
   const d = new THREE.Group();
   d.position.set(-0.15, 0.25, 0.1);
   g.add(d);
