@@ -1,4 +1,6 @@
 import * as THREE from "three";
+import { appearance, type Slot } from "./shop";
+import { companionModel } from "./companion-scene";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import {
   palette,
@@ -16,6 +18,7 @@ export type QuestSceneOptions = {
   wordCount: number;
   seed: string;
   motion: boolean;
+  equipment?: Record<Slot, string>;
 };
 export type QuestSceneState = {
   arrived: number;
@@ -673,10 +676,11 @@ export function createQuestScene(
       );
     }
 
+    const look = appearance(opts.equipment);
     const hero = new THREE.Group(),
       body = new THREE.Group();
     hero.add(body);
-    add(body, new THREE.ConeGeometry(0.36, 0.95, 8), mat("#9d8ad7"), 0, 0.48);
+    add(body, new THREE.ConeGeometry(0.36, 0.95, 8), mat(look.robe), 0, 0.48);
     add(
       body,
       new THREE.ConeGeometry(
@@ -696,16 +700,30 @@ export function createQuestScene(
     add(body, new THREE.SphereGeometry(0.2, 10, 8), mat("#f0c9a5"), 0, 1.08);
     const hat = add(
       body,
-      new THREE.ConeGeometry(0.27, 0.55, 8),
-      mat("#635194"),
+      look.crown
+        ? new THREE.CylinderGeometry(0.26, 0.22, 0.17, 8)
+        : new THREE.ConeGeometry(0.27, 0.55, 8),
+      mat(look.hat),
       0,
-      1.42,
+      look.crown ? 1.27 : 1.42,
     );
-    hat.rotation.z = -0.15;
+    hat.rotation.z = look.crown ? 0 : -0.15;
+    if (look.crown)
+      for (let k = 0; k < 5; k++) {
+        const a = (k * Math.PI * 2) / 5;
+        add(
+          body,
+          new THREE.ConeGeometry(0.07, 0.22, 5),
+          mat(look.hat),
+          Math.sin(a) * 0.22,
+          1.46,
+          Math.cos(a) * 0.22,
+        );
+      }
     const brim = add(
       body,
       new THREE.TorusGeometry(0.24, 0.04, 5, 14),
-      mat("#f2d397"),
+      mat(opts.equipment?.hat === "hat-moon" ? "#e2f3ff" : "#f2d397"),
       0,
       1.2,
     );
@@ -721,12 +739,12 @@ export function createQuestScene(
     add(
       body,
       new THREE.SphereGeometry(0.08, 8, 6),
-      mat("#ffe1a0", true),
+      mat(look.staff, true),
       0.34,
       1.4,
       0.08,
     );
-    const staffLight = new THREE.PointLight("#ffd59a", 1, 5, 2);
+    const staffLight = new THREE.PointLight(look.staff, 1, 5, 2);
     staffLight.position.set(0.34, 1.45, 0.1);
     body.add(staffLight);
     const shadowMaterial = new THREE.MeshBasicMaterial({
@@ -753,6 +771,41 @@ export function createQuestScene(
         );
     hero.position.copy(standAt(0));
     hero.rotation.y = Math.atan2(directionOf(0).x, directionOf(0).z);
+    const companion = companionModel(look.pet);
+    companion.position.set(-0.8, 0.15, -0.65);
+    companion.traverse((node) => {
+      if (node instanceof THREE.Mesh) {
+        geometry(node.geometry);
+        materials.add(node.material as THREE.Material);
+      }
+    });
+    hero.add(companion);
+    const aura = new THREE.Group();
+    hero.add(aura);
+    if (look.aura === "aura-ring") {
+      const ring = add(
+        aura,
+        new THREE.TorusGeometry(0.65, 0.025, 5, 24),
+        mat("#a9e7e0", true),
+        0,
+        0.13,
+      );
+      ring.rotation.x = Math.PI / 2;
+    }
+    if (look.aura === "aura-stars")
+      for (let k = 0; k < 3; k++) {
+        const a = (k * Math.PI * 2) / 3;
+        add(
+          aura,
+          new THREE.OctahedronGeometry(0.07),
+          mat("#ffe3a0", true),
+          Math.sin(a) * 0.65,
+          0.45,
+          Math.cos(a) * 0.65,
+        );
+      }
+    container.dataset.scenePet = look.pet;
+    container.dataset.sceneRobe = opts.equipment?.robe || "robe-lilac";
     scene.add(hero);
     type Stone = {
       mesh: THREE.Mesh<THREE.BoxGeometry, THREE.MeshStandardMaterial>;
@@ -1253,6 +1306,10 @@ export function createQuestScene(
       const dt = Math.min(0.1, (now - last || 33) / 1000);
       last = now;
       time += dt;
+      if (motion) {
+        companion.position.y = 0.15 + Math.sin(time * 2.2) * 0.07;
+        aura.rotation.y = time * 0.45;
+      }
       if (state.phase === "intro") {
         introAge += dt;
         if (!motion || introAge >= 2) state.phase = "ready";

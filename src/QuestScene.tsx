@@ -16,6 +16,7 @@ export type QuestSceneProps = Omit<QuestSceneOptions, "motion"> & {
 };
 export default function QuestScene({
   world,
+  equipment,
   boss,
   wordCount,
   seed,
@@ -51,7 +52,7 @@ export default function QuestScene({
     try {
       api.current = createQuestScene(
         container,
-        { world, boss, wordCount, seed, motion: motion() },
+        { world, boss, wordCount, seed, equipment, motion: motion() },
         (state) => {
           for (const [key, value] of Object.entries(state))
             container.setAttribute("data-scene-" + key, String(value));
@@ -74,7 +75,7 @@ export default function QuestScene({
       api.current?.dispose();
       api.current = null;
     };
-  }, [world, boss, wordCount, seed, reduced]);
+  }, [world, boss, wordCount, seed, reduced, equipment]);
   useEffect(() => {
     api.current?.hear(hearing);
   }, [hearing]);

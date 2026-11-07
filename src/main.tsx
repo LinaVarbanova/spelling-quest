@@ -33,6 +33,15 @@ import { Crest, TreasureChest, WorldArt } from "./Art";
 import "./style.css";
 import "./playground.css";
 import "./quest-scene.css";
+import "./shop.css";
+import Shop, { CharacterPortrait } from "./Shop";
+import {
+  collectionFor,
+  tokenBalance,
+  purchaseItem,
+  equipItem,
+  itemById,
+} from "./shop";
 const QuestScene = lazy(() => import("./QuestScene"));
 const IslandPlayground = lazy(() => import("./IslandPlayground"));
 const recognizer = new BrowserSpellingRecognizer();
@@ -43,6 +52,7 @@ function App() {
     [page, setPage] = useState("map"),
     [sceneRun, setSceneRun] = useState(0),
     [pronouncing, setPronouncing] = useState(false),
+    [shopMessage, setShopMessage] = useState(""),
     [world, setWorld] = useState(0),
     [active, setActive] = useState<Quest>(quests[0]),
     [round, setRound] = useState(0),
@@ -215,6 +225,31 @@ function App() {
       /* Optional effect only. */
     }
   }
+  async function customize(id: string, buy: boolean) {
+    if (busy.current) return;
+    busy.current = true;
+    try {
+      const updated = buy
+        ? purchaseItem(progress, id)
+        : equipItem(progress, id);
+      const saved = await save(updated);
+      setShopMessage(
+        saved
+          ? buy
+            ? `${itemById(id).name} collected. Equip it to take it on your journey.`
+            : `${itemById(id).name} equipped for your next quest.`
+          : "Your look is available this visit. Export a backup to preserve it; device saving failed.",
+      );
+    } catch (error) {
+      setShopMessage(
+        error instanceof Error
+          ? error.message
+          : "Could not update your collection.",
+      );
+    } finally {
+      busy.current = false;
+    }
+  }
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (
@@ -368,6 +403,7 @@ function App() {
             ["map", "Adventure"],
             ["vault", "Word Vault"],
             ["profile", "Adventurer"],
+            ["shop", "Shop"],
           ].map(([id, label]) => (
             <button
               key={id}
@@ -388,6 +424,13 @@ function App() {
           <span className="xp">
             ✦ {progress.xp} XP{" "}
             <span>· Level {Math.floor(progress.xp / 250) + 1}</span>
+            <button
+              className="wallet-link"
+              onClick={() => go("shop")}
+              aria-label={`Open shop, ${tokenBalance(progress)} tokens`}
+            >
+              ◈ {tokenBalance(progress)}
+            </button>
           </span>
         </div>
         {notice && (
@@ -621,6 +664,7 @@ function App() {
           >
             <Suspense fallback={questBanner}>
               <QuestScene
+                equipment={progress.collection?.equipped}
                 hearing={pronouncing}
                 key={sceneRun}
                 world={active.world}
@@ -955,7 +999,10 @@ function App() {
             <button className="primary" onClick={() => start(active)}>
               Play again →
             </button>{" "}
-            <button onClick={() => go("map")}>Adventure map</button>
+            <button onClick={() => go("map")}>Adventure map</button>{" "}
+            <button onClick={() => go("shop")}>
+              Visit the shop · {tokenBalance(progress)} tokens
+            </button>
             <p className="small">
               A good moment for a break. Short adventures build lasting skills.
             </p>
@@ -1078,10 +1125,35 @@ function App() {
             </div>
           </section>
         )}
+        {page === "shop" && (
+          <>
+            <Shop
+              progress={progress}
+              pending={saving}
+              onAction={(id, buy) => void customize(id, buy)}
+            />
+            {shopMessage && (
+              <p className="notice" role="status">
+                {shopMessage}
+              </p>
+            )}
+          </>
+        )}
         {page === "profile" && (
           <section className="panel">
             <p className="eyebrow">YOUR JOURNEY, AT A GLANCE</p>
             <h1>Adventurer’s journal</h1>
+            <div className="profile-look">
+              <CharacterPortrait equipped={collectionFor(progress).equipped} />
+              <div>
+                <h2>Your spellkeeper</h2>
+                <p>
+                  {tokenBalance(progress)} tokens ·{" "}
+                  {itemById(collectionFor(progress).equipped.pet).name}
+                </p>
+                <button onClick={() => go("shop")}>Customize character</button>
+              </div>
+            </div>
             <div className="stats">
               <div>
                 <strong>{progress.xp}</strong>XP earned
