@@ -1,6 +1,14 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { palette, tree, portal } from "./playground-scene";
+import {
+  palette,
+  realmColors,
+  tree,
+  portal,
+  cone,
+  crystal,
+  tower,
+} from "./playground-scene";
 export type QuestSceneOptions = {
   world: number;
   boss: boolean;
@@ -54,11 +62,43 @@ const directionOf = (i: number) =>
     .setY(0)
     .normalize();
 const sideOf = (d: THREE.Vector3) => new THREE.Vector3(d.z, 0, -d.x);
+export function propPositions(seed: string, island: number) {
+  let state = 2166136261;
+  for (const ch of seed + ":" + island)
+    state = Math.imul(state ^ ch.charCodeAt(0), 16777619);
+  const random = () =>
+    (state = (Math.imul(state, 1664525) + 1013904223) >>> 0) / 4294967296;
+  const side = sideOf(directionOf(island)),
+    positions: { x: number; z: number }[] = [];
+  for (let i = 0; i < 9; i++) {
+    const angle = random() * Math.PI * 2,
+      radius = 1 + random();
+    const x = Math.cos(angle) * radius,
+      z = Math.sin(angle) * radius;
+    if (x * side.x + z * side.z > 0.8) positions.push({ x, z });
+  }
+  if (!positions.length) positions.push({ x: side.x * 1.4, z: side.z * 1.4 });
+  return positions;
+}
+export const questLightTypes = [
+  "lantern",
+  "crystal shard",
+  "summit beacon",
+  "candle window",
+  "ember brazier",
+  "crown jewel",
+];
 export function createQuestScene(
   container: HTMLElement,
   opts: QuestSceneOptions,
   onState?: (s: QuestSceneState) => void,
 ): QuestSceneAPI {
+  const world =
+    Number.isInteger(opts.world) && opts.world >= 0 && opts.world < 6
+      ? opts.world
+      : 0;
+  container.dataset.sceneWorld = String(world);
+  container.dataset.sceneLight = questLightTypes[world];
   const count = Math.max(1, Math.min(25, Math.floor(opts.wordCount))),
     state: QuestSceneState = {
       arrived: 0,
@@ -223,24 +263,78 @@ export function createQuestScene(
     lamp: THREE.Mesh;
     material: THREE.MeshStandardMaterial;
     light: THREE.PointLight;
+    color: string;
   }[] = [];
   const islands: THREE.Group[] = [];
   for (let i = 0; i <= count; i++) {
     const g = new THREE.Group();
-    add(g, new THREE.CylinderGeometry(2.3, 2.13, 0.5, 9), mat(palette[0][0]));
+    add(
+      g,
+      new THREE.CylinderGeometry(2.3, 2.13, 0.5, 9),
+      mat(palette[world][0]),
+    );
     const rock = add(
       g,
       new THREE.ConeGeometry(2.13, 3.4, 9),
-      mat(palette[0][1]),
+      mat(palette[world][1]),
       0,
       -1.95,
     );
     rock.rotation.x = Math.PI;
     if (i < count) {
-      const d = directionOf(Math.min(i, count - 1)),
-        s = sideOf(d);
-      tree(g, s.x * 1.35, s.z * 1.35, 0.75);
-    } else portal(g as THREE.Group, "#f2d397");
+      propPositions(opts.seed, i).forEach(({ x, z }, index) => {
+        const prop = new THREE.Group();
+        prop.position.set(x, 0, z);
+        prop.rotation.y = Math.sin(i * 9 + index) * 0.7;
+        const small = 0.45 + (index % 3) * 0.1;
+        if (world === 0)
+          tree(prop, 0, 0, small + 0.15, index % 2 ? "#80c7b4" : "#8cc8c8");
+        else if (world === 1)
+          crystal(prop, index % 2 ? "#9de7ee" : "#baadf4", 0, 0.8, 0, small);
+        else if (world === 2) {
+          cone(
+            prop,
+            "#8cb9d0",
+            small,
+            small * 2.5,
+            0,
+            small * 1.25 + 0.25,
+            0,
+            6,
+          );
+          cone(
+            prop,
+            "#ecf5fa",
+            small * 0.4,
+            small,
+            0,
+            small * 2.1 + 0.25,
+            0,
+            6,
+          );
+        } else if (world === 3) {
+          if (index === 0) tower(prop, 0, 0, 1.2, "#a99bc6", "#7d639e");
+          else crystal(prop, "#b7a2d7", 0, 0.55, 0, 0.28);
+        } else if (world === 4) {
+          cone(
+            prop,
+            "#78556c",
+            small,
+            small * 1.2,
+            0,
+            small * 0.6 + 0.25,
+            0,
+            7,
+          );
+          crystal(prop, "#efb285", 0, small + 0.3, 0, 0.22);
+        } else {
+          if (index === 0) tower(prop, 0, 0, 1.3, "#e6e3cb", "#8ac9be");
+          else if (index % 2) tree(prop, 0, 0, 0.45, "#dbb6d1");
+          else crystal(prop, "#f3d392", 0, 0.65, 0, 0.24);
+        }
+        g.add(prop);
+      });
+    } else portal(g, "#f2d397");
     mergeIsland(g);
     g.position.copy(islandPosition(i));
     scene.add(g);
@@ -250,33 +344,169 @@ export function createQuestScene(
         side = sideOf(directionOf(i - 1));
       post.position.copy(islandPosition(i)).addScaledVector(side, 1.15);
       post.position.y += 0.25;
-      add(
-        post,
-        new THREE.CylinderGeometry(0.045, 0.06, 1.5, 6),
-        mat("#655576"),
-        0,
-        0.75,
-      );
+      const color = [
+        "#ffd89c",
+        "#93def3",
+        "#e2f1ff",
+        "#dfc6fb",
+        "#ffc58a",
+        "#ffdf9c",
+      ][world];
       const lampMaterial = new THREE.MeshStandardMaterial({
         color: "#756b8b",
-        emissive: "#ffd89c",
+        emissive: color,
         emissiveIntensity: 0,
         roughness: 0.65,
       });
       materials.add(lampMaterial);
-      const lamp = add(
-        post,
-        new THREE.OctahedronGeometry(0.2),
-        lampMaterial,
-        0,
-        1.7,
-      );
-      const light = new THREE.PointLight("#ffd89c", 0, 7, 2);
-      light.position.set(0, 1.7, 0);
+      let lamp: THREE.Mesh;
+      if (world === 0) {
+        add(
+          post,
+          new THREE.CylinderGeometry(0.045, 0.06, 1.5, 6),
+          mat("#655576"),
+          0,
+          0.75,
+        );
+        add(
+          post,
+          new THREE.BoxGeometry(0.4, 0.05, 0.05),
+          mat("#655576"),
+          0.15,
+          1.5,
+        );
+        lamp = add(
+          post,
+          new THREE.OctahedronGeometry(0.19),
+          lampMaterial,
+          0.3,
+          1.25,
+        );
+      } else if (world === 1) {
+        add(
+          post,
+          new THREE.CylinderGeometry(0.24, 0.3, 0.35, 6),
+          mat("#777598"),
+          0,
+          0.175,
+        );
+        lamp = add(
+          post,
+          new THREE.OctahedronGeometry(0.32),
+          lampMaterial,
+          0,
+          0.75,
+        );
+        lamp.scale.set(0.65, 1.4, 0.65);
+      } else if (world === 2) {
+        add(
+          post,
+          new THREE.CylinderGeometry(0.07, 0.12, 1.25, 6),
+          mat("#9bacc3"),
+          0,
+          0.625,
+        );
+        add(
+          post,
+          new THREE.CylinderGeometry(0.22, 0.18, 0.1, 8),
+          mat("#d2dfdf"),
+          0,
+          1.3,
+        );
+        lamp = add(
+          post,
+          new THREE.SphereGeometry(0.17, 8, 6),
+          lampMaterial,
+          0,
+          1.55,
+        );
+      } else if (world === 3) {
+        add(
+          post,
+          new THREE.BoxGeometry(0.55, 0.65, 0.12),
+          mat("#77688e"),
+          0,
+          1.15,
+        );
+        add(
+          post,
+          new THREE.CylinderGeometry(0.06, 0.08, 0.85, 6),
+          mat("#71647e"),
+          0,
+          0.425,
+        );
+        lamp = add(
+          post,
+          new THREE.BoxGeometry(0.35, 0.45, 0.14),
+          lampMaterial,
+          0,
+          1.15,
+          0.02,
+        );
+      } else if (world === 4) {
+        add(
+          post,
+          new THREE.CylinderGeometry(0.08, 0.14, 0.9, 6),
+          mat("#806276"),
+          0,
+          0.45,
+        );
+        add(
+          post,
+          new THREE.CylinderGeometry(0.32, 0.22, 0.22, 8),
+          mat("#967786"),
+          0,
+          1,
+        );
+        lamp = add(
+          post,
+          new THREE.OctahedronGeometry(0.2),
+          lampMaterial,
+          0,
+          1.3,
+        );
+        lamp.scale.y = 1.5;
+      } else {
+        add(
+          post,
+          new THREE.CylinderGeometry(0.13, 0.2, 1, 8),
+          mat("#bea77c"),
+          0,
+          0.5,
+        );
+        const ring = add(
+          post,
+          new THREE.TorusGeometry(0.3, 0.045, 5, 16),
+          mat("#e3c687"),
+          0,
+          1.05,
+        );
+        ring.rotation.x = Math.PI / 2;
+        for (let k = 0; k < 3; k++) {
+          const a = (k * Math.PI * 2) / 3;
+          add(
+            post,
+            new THREE.ConeGeometry(0.07, 0.22, 5),
+            mat("#e3c687"),
+            Math.sin(a) * 0.26,
+            1.18,
+            Math.cos(a) * 0.26,
+          );
+        }
+        lamp = add(
+          post,
+          new THREE.OctahedronGeometry(0.22),
+          lampMaterial,
+          0,
+          1.45,
+        );
+      }
+      const light = new THREE.PointLight(color, 0, 7, 2);
+      light.position.copy(lamp.position);
       light.visible = false;
       post.add(light);
       scene.add(post);
-      posts[i] = { lamp, material: lampMaterial, light };
+      posts[i] = { lamp, material: lampMaterial, light, color };
     }
   }
   const hero = new THREE.Group(),
@@ -386,8 +616,8 @@ export function createQuestScene(
     kind: "typed" | "blue" = "typed",
   ) {
     const m = new THREE.MeshStandardMaterial({
-      color: kind === "blue" ? "#bfe3ff" : "#a194d6",
-      emissive: kind === "blue" ? "#45769d" : "#46356e",
+      color: kind === "blue" ? "#bfe3ff" : realmColors[world],
+      emissive: kind === "blue" ? "#45769d" : palette[world][1],
       emissiveIntensity: 0.55,
       roughness: 0.6,
       transparent: true,
@@ -604,8 +834,8 @@ export function createQuestScene(
     const post = posts[index];
     if (!post) return;
     post.material.color.set(helped ? "#dff3ff" : "#ffe8b4");
-    post.material.emissive.set(helped ? "#bfe3ff" : "#ffd89c");
-    post.light.color.set(helped ? "#bfe3ff" : "#ffd89c");
+    post.material.emissive.set(helped ? "#bfe3ff" : post.color);
+    post.light.color.set(helped ? "#bfe3ff" : post.color);
     post.light.visible = true;
     void animate(700, (t) => {
       post.material.emissiveIntensity = t * 1.4;

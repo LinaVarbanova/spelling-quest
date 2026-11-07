@@ -34,7 +34,7 @@ vi.mock("three", async (importOriginal) => {
     },
   };
 });
-function fixture(motion = false) {
+function fixture(motion = false, world = 0, boss = false) {
   const states: QuestSceneState[] = [];
   const container = Object.assign(new EventTarget(), {
     clientWidth: 1024,
@@ -44,7 +44,7 @@ function fixture(motion = false) {
   }) as unknown as HTMLElement;
   const api = createQuestScene(
     container,
-    { world: 0, boss: false, wordCount: 10, seed: "test-quest", motion },
+    { world, boss, wordCount: 10, seed: "test-quest", motion },
     (s) => states.push(s),
   );
   return { api, states, container };
@@ -197,5 +197,45 @@ describe("gentle misses", () => {
       phase: "ready",
     });
     api.dispose();
+  });
+});
+
+describe("six themed worlds", () => {
+  it("places deterministic scenery only behind the path", async () => {
+    const { propPositions, islandPosition } =
+      await import("../src/quest-scene");
+    expect(propPositions("trail", 0)).toEqual(propPositions("trail", 0));
+    expect(propPositions("trail", 0)).not.toEqual(
+      propPositions("different", 0),
+    );
+    for (let i = 0; i < 10; i++) {
+      const d = islandPosition(i + 1)
+        .sub(islandPosition(i))
+        .setY(0)
+        .normalize();
+      for (const p of propPositions("trail", i))
+        expect(p.x * d.z - p.z * d.x).toBeGreaterThan(0.8);
+    }
+  });
+  it("builds each world under the triangle budget without shadow maps", async () => {
+    const THREE = await import("three");
+    const { questLightTypes } = await import("../src/quest-scene");
+    for (let world = 0; world < 6; world++) {
+      const { api, container } = fixture(false, world);
+      await vi.advanceTimersByTimeAsync(40);
+      expect(container.dataset.sceneWorld).toBe(String(world));
+      expect(container.dataset.sceneLight).toBe(questLightTypes[world]);
+      const scene = calls.render.mock.lastCall?.[0] as import("three").Scene;
+      let triangles = 0;
+      scene.traverse((o) => {
+        if (o instanceof THREE.Mesh)
+          triangles +=
+            (o.geometry.index?.count ||
+              o.geometry.getAttribute("position").count) / 3;
+        else if (o instanceof THREE.Sprite) triangles += 2;
+      });
+      expect(triangles).toBeLessThan(25000);
+      api.dispose();
+    }
   });
 });

@@ -15,3 +15,7 @@ Child-entered letters create cached rune sprites at fixed slots (not target-leng
 ## 3 · Gentle miss
 
 Incorrect stones fade and tumble in staggered lavender; the original procedural wisp lays the official spelling only after submission. It crosses to a blue lantern without adding gold or brightening the world. Boss retries crumble without advancing. DOM feedback uses blue/lavender and defeat shake is disabled. Reduced motion cuts immediately to the resulting state. Lives, XP, actual review scheduling and voice confirmation remain unchanged.
+
+## 4 · Six worlds
+
+Each world now uses its existing playground palette and exported art helpers. Deterministic quest-seeded props occupy only the far side of the path; static geometry is merged by shared material per island, with lower-resolution sphere geometry for the tablet budget. The six light shapes follow the world objectives: lantern, crystal, summit beacon, candle window, ember brazier and crown jewel. Typed runes are world-tinted. Unit checks build all six worlds and verify the far-side placement and sub-25k triangle budget. The original playground helper bodies and appearance remain unchanged.
