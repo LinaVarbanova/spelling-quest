@@ -32,6 +32,8 @@ import {
 import { Crest, TreasureChest, WorldArt } from "./Art";
 import "./style.css";
 import "./playground.css";
+import "./quest-scene.css";
+const QuestScene = lazy(() => import("./QuestScene"));
 const IslandPlayground = lazy(() => import("./IslandPlayground"));
 const recognizer = new BrowserSpellingRecognizer();
 const today = () => new Date().toLocaleDateString("en-CA");
@@ -39,6 +41,8 @@ function App() {
   const [progress, setProgress] = useState<Progress>(freshProgress),
     [ready, setReady] = useState(false),
     [page, setPage] = useState("map"),
+    [sceneRun, setSceneRun] = useState(0),
+    [pronouncing, setPronouncing] = useState(false),
     [world, setWorld] = useState(0),
     [active, setActive] = useState<Quest>(quests[0]),
     [round, setRound] = useState(0),
@@ -169,6 +173,7 @@ function App() {
     setCountdown(90);
   }
   function start(q: Quest) {
+    setSceneRun((r) => r + 1);
     stop();
     setActive(q);
     setWorld(q.world);
@@ -189,6 +194,7 @@ function App() {
         setNotice(
           "Audio unavailable. Check your installed English system voices or choose another voice in settings.",
         ),
+      setPronouncing,
     );
   }
   function chime() {
@@ -305,6 +311,42 @@ function App() {
   }
   const failed =
     lives === 0 || (timed && active.world === 5 && countdown === 0 && !result);
+  const questTitle = active.boss
+    ? win.boss
+    : active.id === "daily"
+      ? "The Lantern Keeper"
+      : active.id === "weekly"
+        ? "Weekly review challenge"
+        : active.id === "review"
+          ? "Memory trail"
+          : `Trail ${active.index + 1}`;
+  const questObjective = active.boss
+    ? "Break the guardian’s shield. No hints. Each correct word weakens it."
+    : win.objective;
+  const questBanner = (
+    <div className="battle-art">
+      <WorldArt world={active.world} boss={active.boss} />
+      <div>
+        <p className="eyebrow">{win.name}</p>
+        <h2>
+          {active.boss
+            ? win.boss
+            : active.id === "daily"
+              ? "The Lantern Keeper"
+              : active.id === "weekly"
+                ? "Weekly review challenge"
+                : active.id === "review"
+                  ? "Memory trail"
+                  : `Trail ${active.index + 1}`}
+        </h2>
+        <p>
+          {active.boss
+            ? "Break the guardian’s shield. No hints. Each correct word weakens it."
+            : win.objective}
+        </p>
+      </div>
+    </div>
+  );
   return (
     <>
       <header>
@@ -577,28 +619,35 @@ function App() {
             className={"play panel " + (active.boss ? "boss" : "")}
             style={{ "--world": win.color } as React.CSSProperties}
           >
-            <div className="battle-art">
-              <WorldArt world={active.world} boss={active.boss} />
-              <div>
-                <p className="eyebrow">{win.name}</p>
-                <h2>
-                  {active.boss
-                    ? win.boss
-                    : active.id === "daily"
-                      ? "The Lantern Keeper"
-                      : active.id === "weekly"
-                        ? "Weekly review challenge"
-                        : active.id === "review"
-                          ? "Memory trail"
-                          : `Trail ${active.index + 1}`}
-                </h2>
-                <p>
-                  {active.boss
-                    ? "Break the guardian’s shield. No hints. Each correct word weakens it."
-                    : win.objective}
-                </p>
-              </div>
-            </div>
+            <Suspense fallback={questBanner}>
+              <QuestScene
+                hearing={pronouncing}
+                key={sceneRun}
+                world={active.world}
+                boss={active.boss}
+                wordCount={active.words.length}
+                seed={active.id}
+                reduced={reduced}
+                title={questTitle}
+                objective={questObjective}
+                fallback={questBanner}
+                answer={answer}
+                resolution={
+                  result
+                    ? {
+                        id: `${word.id}:${progress.records[word.id]?.attempts || 0}`,
+                        correct: result.correct,
+                        word: word.word,
+                        retrySameGap: active.boss && !result.correct,
+                        last:
+                          round === active.words.length - 1 &&
+                          lives > 0 &&
+                          (!active.boss || result.correct),
+                      }
+                    : null
+                }
+              />
+            </Suspense>
             <div className="quest-top">
               <span>
                 {active.boss

@@ -1,0 +1,474 @@
+<meta charset="utf-8">
+<title>Spelling Quest Sky Trail</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,400..700,100&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: the 3D trail is the whole stage; a spellbook panel sits under it like a game HUD. Single dark look, like the game. */
+:root{
+  --night:#110d22; --dusk:#1c1634; --ink:#efe8f7; --mist:#b9afcf; --faint:#8c82a6;
+  --gold:#f2d397; --wisp:#bfe3ff; --moss:#9fd8b4; --line:#d7c3ff26;
+  --f-display:"Fraunces",Georgia,serif; --f-body:"Atkinson Hyperlegible","Trebuchet MS",system-ui,sans-serif; --f-mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--night);color:var(--ink);font:16px/1.55 var(--f-body)}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 64px;display:grid;gap:22px}
+.top{display:flex;flex-wrap:wrap;gap:8px 24px;align-items:baseline;justify-content:space-between}
+h1{font:500 clamp(28px,4vw,42px)/1.05 var(--f-display);margin:0;font-variation-settings:"SOFT" 100;text-wrap:balance}
+.eyebrow{font:600 11px/1 var(--f-mono);letter-spacing:.16em;text-transform:uppercase;color:var(--gold)}
+.top p{margin:0;color:var(--mist);max-width:60ch}
+.game{position:relative;border-radius:18px;overflow:hidden;border:1px solid var(--line);background:#0d0a1d;box-shadow:0 30px 80px -30px #000}
+.stage{position:relative;aspect-ratio:16/9;max-width:100%;min-height:300px;cursor:grab;touch-action:pan-y}
+.stage:active{cursor:grabbing}
+.stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.hud{position:absolute;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;gap:8px;pointer-events:none;font:600 11px/1 var(--f-mono);letter-spacing:.12em;text-transform:uppercase}
+.pill{background:#110d22c4;border:1px solid var(--line);padding:8px 11px;border-radius:999px;display:flex;align-items:center;gap:10px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.gem{width:11px;height:11px;transform:rotate(45deg);background:var(--gold);box-shadow:0 0 10px #f2d397aa;transition:background .5s,box-shadow .5s}
+.gem.dim{background:#4f4770;box-shadow:none}
+.toast{position:absolute;left:50%;bottom:16px;transform:translate(-50%,8px);background:#110d22d9;border:1px solid var(--line);padding:9px 14px;border-radius:999px;font-size:14px;color:var(--ink);opacity:0;transition:opacity .4s,transform .4s;pointer-events:none;white-space:nowrap;max-width:92%;overflow:hidden;text-overflow:ellipsis}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+.done{position:absolute;inset:0;display:grid;place-items:end center;padding-bottom:18px;pointer-events:none}
+.done .box{pointer-events:auto;background:#140f28ee;border:1px solid #f2d39766;border-radius:16px;padding:22px 26px;display:grid;gap:8px;text-align:center;max-width:88%;opacity:0;transform:scale(.92) translateY(8px);transition:opacity .45s,transform .5s cubic-bezier(.34,1.56,.64,1)}
+.done.on .box{opacity:1;transform:none}
+.done h2{font:500 26px/1.15 var(--f-display);margin:0}
+.done p{margin:0;color:var(--mist);font-size:15px}
+.panel{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px 20px;padding:18px clamp(16px,2.5vw,24px) 20px;border-top:1px solid var(--line);background:linear-gradient(#1a1432,#150f2a)}
+@media(max-width:720px){.panel{grid-template-columns:1fr}}
+.prompt{display:grid;gap:4px;min-width:0}
+.prompt .eyebrow{color:var(--faint)}
+.prompt h2{font:500 clamp(19px,2.4vw,24px)/1.2 var(--f-display);margin:0}
+.hint{color:var(--mist);font-size:15px}
+.hint b{color:var(--ink)}
+.demo-note{font-size:12px;color:var(--faint)}
+form{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+label{display:grid;gap:5px;font-size:13px;color:var(--mist)}
+input{font:600 22px/1 var(--f-display);letter-spacing:.06em;color:var(--gold);background:#100b22;border:1px solid #d7c3ff40;border-radius:12px;padding:11px 14px;width:min(320px,100%);caret-color:var(--gold)}
+input:focus{outline:none;border-color:#f2d397aa;box-shadow:0 0 0 4px #f2d39718}
+button{font:inherit;cursor:pointer}
+.btn{border:1px solid #f2d39766;background:#f2d39714;color:var(--gold);padding:11px 16px;border-radius:999px;font-size:14px;transition:background .12s,transform .12s}
+.btn:hover{background:#f2d39726}.btn:active{transform:scale(.97)}
+.btn.solid{background:linear-gradient(180deg,#f6dca6,#d9ad63);color:#2a1d0c;border-color:transparent;font-weight:700}
+.btn.ghost{border-color:var(--line);color:var(--mist);background:transparent}
+:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+.tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:flex-end}
+.status{grid-column:1/-1;min-height:1.5em;font-size:15px;color:var(--mist)}
+.status.good{color:var(--moss)} .status.help{color:var(--wisp)}
+.how{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:22px}
+.how div{display:grid;gap:6px;padding-top:14px;border-top:1px solid #f2d39750;align-content:start}
+.how h3{font:500 19px/1.2 var(--f-display);margin:0}
+.how p{margin:0;color:var(--mist);font-size:15px}
+.fallback{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:24px;color:var(--mist)}
+</style>
+
+<div class="wrap">
+  <div class="top">
+    <div style="display:grid;gap:8px">
+      <div class="eyebrow">Spelling Quest · 3D quest prototype</div>
+      <h1>Spell the bridge. Cross the sky.</h1>
+    </div>
+    <p>Each word is a gap between floating islands. Your letters rise as stepping stones, and a correct spell locks them into a bridge for your hero to cross. Drag the scene to look around.</p>
+  </div>
+
+  <div class="game" id="game">
+    <div class="stage" id="stage" aria-label="3D trail: a hero on floating islands. Each word builds a bridge to the next island.">
+      <div class="hud">
+        <span class="pill" id="hudTrail">Enchanted Forest · Trail 1 · 0 / 5</span>
+        <span class="pill"><span id="hudXp">✦ 0 XP</span><span style="display:flex;gap:6px" id="gems"><i class="gem"></i><i class="gem"></i><i class="gem"></i></span></span>
+      </div>
+      <div class="toast" id="toast" aria-hidden="true"></div>
+      <div class="done" id="done"><div class="box"><div class="eyebrow">Trail complete</div><h2>The Keeper's gate is open</h2><p id="doneText">+25 XP treasure.</p><div><button class="btn solid" id="again">Walk the trail again</button></div></div></div>
+    </div>
+    <div class="panel">
+      <div class="prompt">
+        <span class="eyebrow" id="wordNo">Word 1 of 5</span>
+        <h2 id="promptTitle">Listen, then build the bridge.</h2>
+        <span class="hint" id="hint"></span>
+        <span class="demo-note">Prototype: the word is shown so you can play without audio. In the game you only hear it.</span>
+      </div>
+      <form id="form" autocomplete="off">
+        <label for="spelling">Your spelling<input id="spelling" autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="14"></label>
+        <button class="btn solid" id="cast" type="submit">Cast spell →</button>
+      </form>
+      <div class="tools" style="grid-column:1/-1;justify-content:flex-start">
+        <button class="btn" type="button" id="hear">◉ Hear the word</button>
+        <button class="btn ghost" type="button" id="auto">Auto-cast</button>
+        <button class="btn ghost" type="button" id="miss">Cast a miss</button>
+      </div>
+      <div class="status" id="status" role="status" aria-live="polite"></div>
+    </div>
+  </div>
+
+  <div class="how">
+    <div><h3>Your letters become the path</h3><p>Every key press lifts a rune stone out of the clouds into the gap. You see your spelling take shape as the way forward.</p></div>
+    <div><h3>A correct spell locks the bridge</h3><p>The stones turn gold and snap into a rope-bridge curve. Your hero walks across, the camera follows, and the next lantern lights.</p></div>
+    <div><h3>A miss: the wisp helps you across</h3><p>Your stones crumble softly into the clouds. The wisp lays the right word as pale blue stones and you still cross. Its lantern glows blue, which marks a word that comes back in review.</p></div>
+    <div><h3>Typing never waits</h3><p>You can start the next word while the hero is still walking. Animation never blocks the spellbook.</p></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(() => {
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const stage = document.getElementById('stage');
+if (!window.THREE) { stage.innerHTML = '<div class="fallback">3D could not load here. In the game, the regular quest screen takes over.</div>'; return; }
+const T = THREE;
+
+/* ---------- data ---------- */
+const WORDS = [
+  {w:'river',  bg:'река',  s:'The lanterns glow beside the ___.'},
+  {w:'bridge', bg:'мост',  s:'We crossed the old stone ___.'},
+  {w:'forest', bg:'гора',  s:'Fireflies live deep in the ___.'},
+  {w:'lantern',bg:'фенер', s:'She lit a golden ___.'},
+  {w:'castle', bg:'замък', s:'A dragon guards the ___.'}
+];
+const N = WORDS.length, R = 2.3, SPACING = 10.5;
+
+/* ---------- renderer / scene ---------- */
+let renderer;
+try { renderer = new T.WebGLRenderer({antialias:true, powerPreference:'low-power', preserveDrawingBuffer: location.search.includes('debug')}); }
+catch(e){ stage.innerHTML = '<div class="fallback">WebGL is not available on this device. In the game, the regular quest screen takes over.</div>'; return; }
+renderer.setPixelRatio(Math.min(devicePixelRatio||1, 1.75));
+renderer.outputEncoding = T.sRGBEncoding;
+stage.prepend(renderer.domElement);
+renderer.domElement.setAttribute('aria-hidden','true');
+const scene = new T.Scene();
+scene.background = new T.Color(0x120d26);
+scene.fog = new T.FogExp2(0x1d1638, 0.03);
+const camera = new T.PerspectiveCamera(48, 16/9, .1, 400);
+
+const hemi = new T.HemisphereLight(0x8f7fd6, 0x22163a, .55); scene.add(hemi);
+const moon = new T.DirectionalLight(0xcfd8ff, .55); moon.position.set(-20,30,10); scene.add(moon);
+
+const mat = (c, o={}) => new T.MeshStandardMaterial(Object.assign({color:c, flatShading:true, roughness:.9}, o));
+const M = {
+  grass: mat(0x2f7a57), grass2: mat(0x2a6a50), rock: mat(0x4a3b66), rock2: mat(0x372b52),
+  bark: mat(0x5a3d2b), leaf: mat(0x2f7a5c), leaf2: mat(0x4b9a6d), pink: mat(0xc58ad8),
+  robe: mat(0x6a4fb8), robe2: mat(0x3b2c78), skin: mat(0xf0c9a5), gold: mat(0xe9c27a,{metalness:.3,roughness:.5}),
+  post: mat(0x3a2f4f), shroom: mat(0xe07a9a), stem: mat(0xf1e6d8),
+};
+function seeded(s){ return () => (s = (s*16807) % 2147483647) / 2147483647; }
+
+/* ---------- islands ---------- */
+const P = []; for (let i=0;i<=N;i++) P.push(new T.Vector3(i*SPACING, Math.sin(i*1.3)*.9, Math.sin(i*.75)*4.2));
+const lanterns = [];
+function tree(g, x, z, s, rnd){
+  const t = new T.Group();
+  const trunk = new T.Mesh(new T.CylinderGeometry(.09*s,.14*s,.9*s,6), M.bark); trunk.position.y=.45*s; t.add(trunk);
+  const m = rnd()<.5?M.leaf:M.leaf2;
+  for (let k=0;k<3;k++){ const c=new T.Mesh(new T.ConeGeometry((.62-.15*k)*s,.8*s,7), m); c.position.y=(1+k*.42)*s; t.add(c); }
+  t.position.set(x,0,z); t.rotation.y=rnd()*6; g.add(t);
+}
+function island(i){
+  const g = new T.Group(), rnd = seeded(i*97+13);
+  const top = new T.Mesh(new T.CylinderGeometry(R, R*.92, .5, 9), i===N?M.grass2:M.grass); g.add(top);
+  const under = new T.Mesh(new T.ConeGeometry(R*.92, 3.4, 9), M.rock); under.rotation.x=Math.PI; under.position.y=-1.95; g.add(under);
+  const under2 = new T.Mesh(new T.ConeGeometry(R*.5, 1.6, 7), M.rock2); under2.rotation.x=Math.PI; under2.position.set(.6,-3.6,.3); g.add(under2);
+  const dirIn = i>0 ? P[i].clone().sub(P[i-1]).setY(0).normalize() : new T.Vector3(1,0,0);
+  const side = new T.Vector3(dirIn.z,0,-dirIn.x);
+  for (let k=0;k<(i===N?0:9);k++){ const a=rnd()*Math.PI*2, r=.9+rnd()*1.1; const x=Math.cos(a)*r, z=Math.sin(a)*r;
+    if (x*side.x+z*side.z < .8) continue; tree(g,x,z,.8+rnd()*.5,rnd); }
+  for (let k=0;k<3;k++){ const a=rnd()*6.28, r=1.2+rnd()*.8; const s=new T.Group();
+    const st=new T.Mesh(new T.CylinderGeometry(.04,.05,.18,5),M.stem); st.position.y=.09; s.add(st);
+    const cap=new T.Mesh(new T.SphereGeometry(.12,6,4,0,6.3,0,1.6),M.shroom); cap.position.y=.18; s.add(cap);
+    s.position.set(Math.cos(a)*r,.25,Math.sin(a)*r); g.add(s); }
+  g.children.forEach(c=>{ if(c!==top&&c!==under&&c!==under2) c.position.y += .25; });
+  g.position.copy(P[i]); scene.add(g);
+  if (i>0){ // lantern post beside the landing spot
+    const post = new T.Group();
+    const pole = new T.Mesh(new T.CylinderGeometry(.05,.06,1.7,6), M.post); pole.position.y=.85; post.add(pole);
+    const arm = new T.Mesh(new T.BoxGeometry(.45,.05,.05), M.post); arm.position.set(.2,1.65,0); post.add(arm);
+    const lampMat = new T.MeshStandardMaterial({color:0x6c6290, emissive:0x000000, flatShading:true});
+    const lamp = new T.Mesh(new T.OctahedronGeometry(.17,0), lampMat); lamp.position.set(.4,1.42,0); post.add(lamp);
+    const light = new T.PointLight(0xffc77a, 0, 9, 2); light.position.set(.4,1.42,0); post.add(light);
+    const pos = side.clone().multiplyScalar(1.15).add(new T.Vector3(0,.25,0));
+    post.position.copy(pos); post.lookAt(post.position.clone().add(dirIn)); post.rotateY(-Math.PI/2);
+    g.add(post); lanterns[i] = {lamp, lampMat, light, post};
+  }
+  if (i===N){ // the Keeper's gate
+    const gate = new T.Group();
+    const ring = new T.Mesh(new T.TorusGeometry(1,.13,8,24), M.gold); ring.position.y=1.15; gate.add(ring);
+    const inner = new T.Mesh(new T.CircleGeometry(.9,24), new T.MeshBasicMaterial({color:0x2a2050, transparent:true, opacity:.85, side:T.DoubleSide}));
+    inner.position.y=1.15; gate.add(inner);
+    [-1,1].forEach(s=>{ const p=new T.Mesh(new T.CylinderGeometry(.12,.16,1.2,6),M.post); p.position.set(s*1.02,.6,0); gate.add(p); });
+    gate.position.copy(dirIn.clone().multiplyScalar(1.15)).add(new T.Vector3(0,.25,0));
+    gate.lookAt(gate.position.clone().add(dirIn).add(P[i])); gate.position.add(new T.Vector3(0,0,0));
+    gate.rotation.set(0, Math.atan2(dirIn.x, dirIn.z), 0);
+    g.add(gate); window.__gate = {gate, ring, inner};
+  }
+  return g;
+}
+for (let i=0;i<=N;i++) island(i);
+const gate = window.__gate;
+
+/* ---------- sky dressing ---------- */
+function dotTex(inner, outer){ const c=document.createElement('canvas'); c.width=c.height=64; const x=c.getContext('2d');
+  const g=x.createRadialGradient(32,32,0,32,32,32); g.addColorStop(0,inner); g.addColorStop(1,outer); x.fillStyle=g; x.fillRect(0,0,64,64); return new T.CanvasTexture(c); }
+const glowTex = dotTex('rgba(255,240,200,1)','rgba(255,200,120,0)');
+const cloudTex = dotTex('rgba(200,185,240,.55)','rgba(200,185,240,0)');
+{ const n=700, a=new Float32Array(n*3); for(let i=0;i<n;i++){ const th=Math.random()*6.28, ph=Math.random()*1.2+.15, r=170;
+    a.set([Math.cos(th)*Math.cos(ph)*r+30, Math.sin(ph)*r, Math.sin(th)*Math.cos(ph)*r],i*3); }
+  const g=new T.BufferGeometry(); g.setAttribute('position',new T.Float32BufferAttribute(a,3));
+  scene.add(new T.Points(g,new T.PointsMaterial({color:0xffffff,size:.7,sizeAttenuation:true,fog:false}))); }
+const clouds=[]; for(let i=0;i<70;i++){ const s=new T.Sprite(new T.SpriteMaterial({map:cloudTex,transparent:true,depthWrite:false,opacity:.5}));
+  s.position.set(-10+Math.random()*(N*SPACING+20), -6-Math.random()*4, -12+Math.random()*24); const sc=6+Math.random()*9; s.scale.set(sc,sc*.55,1); scene.add(s); clouds.push(s); }
+const FF=90, ffBase=new Float32Array(FF*3), ffPos=new Float32Array(FF*3);
+for(let i=0;i<FF;i++){ ffBase.set([-4+Math.random()*(N*SPACING+8), .5+Math.random()*3.5, -7+Math.random()*14], i*3); }
+const ffGeo=new T.BufferGeometry(); ffGeo.setAttribute('position',new T.BufferAttribute(ffPos,3));
+scene.add(new T.Points(ffGeo,new T.PointsMaterial({map:glowTex,size:.35,transparent:true,depthWrite:false,blending:T.AdditiveBlending,color:0xffe6a8})));
+
+/* ---------- hero ---------- */
+const hero = new T.Group(); const body = new T.Group(); hero.add(body);
+const robe = new T.Mesh(new T.ConeGeometry(.36,.95,8), M.robe); robe.position.y=.48; body.add(robe);
+const cape = new T.Mesh(new T.ConeGeometry(.3,.7,8,1,true,Math.PI*.6,Math.PI*.8), M.robe2); cape.position.set(0,.55,-.04); body.add(cape);
+const head = new T.Mesh(new T.SphereGeometry(.2,10,8), M.skin); head.position.y=1.08; body.add(head);
+const hat = new T.Mesh(new T.ConeGeometry(.27,.55,8), M.robe2); hat.position.y=1.42; hat.rotation.z=-.15; body.add(hat);
+const brim = new T.Mesh(new T.TorusGeometry(.24,.04,5,14), M.gold); brim.rotation.x=Math.PI/2; brim.position.y=1.2; body.add(brim);
+const staff = new T.Mesh(new T.CylinderGeometry(.025,.03,1.35,5), M.bark); staff.position.set(.34,.68,.08); body.add(staff);
+const orbMat = new T.MeshBasicMaterial({color:0xffe1a0}); const orb = new T.Mesh(new T.SphereGeometry(.08,10,8), orbMat); orb.position.set(.34,1.4,.08); body.add(orb);
+const heroLight = new T.PointLight(0xffd59a, .9, 6, 2); heroLight.position.set(.34,1.45,.1); body.add(heroLight);
+const shadow = new T.Mesh(new T.CircleGeometry(.42,16), new T.MeshBasicMaterial({color:0x000000,transparent:true,opacity:.3,depthWrite:false}));
+shadow.rotation.x=-Math.PI/2; shadow.position.y=.012; hero.add(shadow);
+scene.add(hero);
+// wisp companion
+const wisp = new T.Group(); const wispCore = new T.Mesh(new T.SphereGeometry(.1,10,8), new T.MeshBasicMaterial({color:0xdff3ff}));
+const wispGlow = new T.Sprite(new T.SpriteMaterial({map:dotTex('rgba(200,235,255,1)','rgba(150,200,255,0)'),transparent:true,depthWrite:false,blending:T.AdditiveBlending}));
+wispGlow.scale.set(.6,.6,1); wisp.add(wispCore, wispGlow); const wispLight = new T.PointLight(0xbfe3ff,.6,4,2); wisp.add(wispLight); scene.add(wisp);
+let wispFree = true; const wispTarget = new T.Vector3();
+
+/* ---------- geometry helpers ---------- */
+const dirOf = g => P[g+1].clone().sub(P[g]).setY(0).normalize();
+const sideOf = d => new T.Vector3(d.z,0,-d.x);
+const topOf = i => P[i].clone().add(new T.Vector3(0,.25,0));
+const edgeA = g => topOf(g).add(dirOf(g).multiplyScalar(R-.25));
+const edgeB = g => topOf(g+1).sub(dirOf(g).multiplyScalar(R-.25));
+const standAt = i => i===0 ? topOf(0).add(dirOf(0).multiplyScalar(.6)) : topOf(i).add(i<N?dirOf(i).multiplyScalar(.3):dirOf(i-1).multiplyScalar(.1));
+function bridgePoint(g, f){ const a=edgeA(g), b=edgeB(g); const p=a.lerp(b,f); p.y -= Math.sin(Math.PI*f)*.55; return p; }
+
+/* ---------- letter stones ---------- */
+const letterTex = {};
+function texFor(ch, col){ const key=ch+col; if(letterTex[key]) return letterTex[key];
+  const c=document.createElement('canvas'); c.width=c.height=128; const x=c.getContext('2d');
+  x.font='700 96px Fraunces, Georgia, serif'; x.textAlign='center'; x.textBaseline='middle';
+  x.shadowColor=col; x.shadowBlur=18; x.fillStyle=col; x.fillText(ch.toUpperCase(),64,70); x.fillText(ch.toUpperCase(),64,70);
+  return letterTex[key]=new T.CanvasTexture(c); }
+const stoneGeo = new T.BoxGeometry(.42,.16,.95);
+const STONE = { typed:[0x8d7ac9,0x2a1f55], gold:[0xf0cf88,0x7a4f12], wrong:[0x5d5677,0x000000], wisp:[0xbfe3ff,0x2a5a80] };
+const stones = []; for (let g=0; g<N; g++) stones.push([]);
+function makeStone(g, ch, k, kind){
+  const m = new T.MeshStandardMaterial({color:STONE[kind][0], emissive:STONE[kind][1], emissiveIntensity:.8, flatShading:true, transparent:true});
+  const mesh = new T.Mesh(stoneGeo, m);
+  const sp = new T.Sprite(new T.SpriteMaterial({map:texFor(ch, kind==='wisp'?'#dff3ff':'#ffe4a6'), transparent:true, depthWrite:false}));
+  sp.scale.set(.66,.66,1); sp.position.y=.5; mesh.add(sp);
+  const target = typedSlot(g,k);
+  mesh.position.copy(target).add(new T.Vector3(0, RM?0:-3.2, 0));
+  mesh.rotation.y = Math.atan2(dirOf(g).x, dirOf(g).z);
+  scene.add(mesh);
+  const s = {mesh, sp, m, ch, k}; stones[g].push(s);
+  tween(RM?0:340, e=>{ mesh.position.y = target.y - 3.2*(1-e); m.opacity=.3+.7*e; }, easeGlint);
+  return s;
+}
+const typedSlot = (g,k) => { const f = (k+.6)/11; return bridgePoint(g, f).add(new T.Vector3(0,.08,0)); };
+function setStoneKind(s, kind, col){ s.m.color.setHex(STONE[kind][0]); s.m.emissive.setHex(STONE[kind][1]); if(col) s.sp.material.map=texFor(s.ch,col); }
+function sinkStone(s){ const p0=s.mesh.position.clone(), rx=(Math.random()-.5)*2, rz=(Math.random()-.5)*2;
+  return tween(RM?0:900, e=>{ s.mesh.position.set(p0.x+rx*e*.4, p0.y-e*e*5, p0.z+rz*e*.4); s.mesh.rotation.x=rx*e*2; s.mesh.rotation.z=rz*e*2; s.m.opacity=1-e; s.sp.material.opacity=1-e; }, t=>t)
+    .then(()=>{ scene.remove(s.mesh); }); }
+function stretchBridge(g){ const list=stones[g], n=list.length;
+  return Promise.all(list.map((s,k)=>{ const from=s.mesh.position.clone(), to=bridgePoint(g,(k+.5)/n).add(new T.Vector3(0,.08,0));
+    return tween(RM?0:380, e=>s.mesh.position.lerpVectors(from,to,e), easeInOut); })); }
+function syncTyped(text){
+  const g = gap; if (g>=N) return; const list = stones[g];
+  while (list.length > text.length){ const s=list.pop(); tween(RM?0:200, e=>{ s.mesh.position.y += .02; s.m.opacity=1-e; s.sp.material.opacity=1-e; }, t=>t).then(()=>scene.remove(s.mesh)); }
+  list.forEach((s,k)=>{ if (s.ch!==text[k]){ s.ch=text[k]; s.sp.material.map=texFor(s.ch,'#ffe4a6'); } });
+  for (let k=list.length; k<text.length; k++) makeStone(g, text[k], k, 'typed');
+}
+
+/* ---------- tweens ---------- */
+const tweens = [];
+const easeInOut = t => t<.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2;
+const easeGlint = t => { const c1=1.70158, c3=c1+1; return 1 + c3*Math.pow(t-1,3) + c1*Math.pow(t-1,2); };
+function tween(dur, fn, ease=easeInOut){ return new Promise(res=>{ if (dur<=0){ fn(1); res(); return; } tweens.push({t0:performance.now(), dur, fn, ease, res}); }); }
+const wait = ms => new Promise(r=>setTimeout(r, RM?0:ms));
+
+/* ---------- walking ---------- */
+let walking = false, heading = dirOf(0).clone();
+function walk(points, speed=4.2){
+  const segs=[]; let total=0; for(let i=1;i<points.length;i++){ const l=points[i].distanceTo(points[i-1]); segs.push(l); total+=l; }
+  walking = true;
+  return tween(RM?0:total/speed*1000, e=>{
+    let d=e*total, i=0; while(i<segs.length-1 && d>segs[i]){ d-=segs[i]; i++; }
+    const a=points[i], b=points[i+1], f=Math.min(1,d/segs[i]);
+    hero.position.lerpVectors(a,b,f);
+    const dx=b.x-a.x, dz=b.z-a.z; if (Math.abs(dx)+Math.abs(dz)>.01){ const ang=Math.atan2(dx,dz); hero.rotation.y += angDiff(ang, hero.rotation.y)*.25; }
+  }, t=>t).then(()=>{ walking=false; });
+}
+const angDiff = (a,b) => { let d=a-b; while(d>Math.PI) d-=2*Math.PI; while(d<-Math.PI) d+=2*Math.PI; return d; };
+function crossGap(g){
+  const pts=[hero.position.clone(), edgeA(g)];
+  for (let k=0;k<12;k++) pts.push(bridgePoint(g,(k+.5)/12).add(new T.Vector3(0,.16,0)));
+  pts.push(edgeB(g), standAt(g+1));
+  focusGap = false; return walk(pts, 4.2*(1+Math.max(0,pending-1)*.8));
+}
+
+/* ---------- camera ---------- */
+let narrow = false, focusGap = true, yawOffset = 0, dragging = false, followK = .9, orbitDone = false, orbitT = 0;
+const camPos = new T.Vector3(N*SPACING*.5, 22, -26), camLook = new T.Vector3(N*SPACING*.5, 0, 0);
+camera.position.copy(camPos);
+function updateCamera(dt){
+  const g = Math.min(gap, N-1), d = dirOf(Math.min(Math.max(arrived,0),N-1));
+  heading.lerp(d, 1-Math.pow(.02, dt)).normalize();
+  let look, want;
+  if (orbitDone){ orbitT += dt*.18; const c=topOf(N); look=c.clone().add(new T.Vector3(0,1,0));
+    want=c.clone().add(new T.Vector3(Math.cos(orbitT)*7, 3.6, Math.sin(orbitT)*7)); }
+  else {
+    const base = hero.position.clone();
+    if (!walking && arrived<N){
+      // side-on "stage" view: hero on the left, bridge reads left to right, next island on the right
+      const d = dirOf(arrived), mid = bridgePoint(arrived,.36).add(new T.Vector3(0,.5,0));
+      const s = sideOf(d).applyAxisAngle(new T.Vector3(0,1,0), yawOffset);
+      look = mid; want = mid.clone().sub(s.multiplyScalar(narrow?12.5:10)).add(new T.Vector3(0,3.4,0)).sub(d.clone().multiplyScalar(2.2));
+    } else {
+      look = base.clone().add(heading.clone().multiplyScalar(3)).add(new T.Vector3(0,.8,0));
+      const back = heading.clone().applyAxisAngle(new T.Vector3(0,1,0), yawOffset);
+      want = base.clone().sub(back.multiplyScalar(6.8)).add(new T.Vector3(0,3.9,0)).add(sideOf(heading).multiplyScalar(-1.6));
+    }
+  }
+  const k = RM ? 1 : 1-Math.pow(1-Math.min(.99,followK*dt*2.2), 1);
+  camPos.lerp(want, k); camLook.lerp(look, k*1.2>1?1:k*1.2);
+  camera.position.copy(camPos); camera.lookAt(camLook);
+  if (!dragging) yawOffset *= Math.pow(.15, dt);
+}
+let downX = 0;
+renderer.domElement.addEventListener('pointerdown', e=>{ dragging=true; downX=e.clientX; });
+addEventListener('pointerup', ()=>dragging=false);
+addEventListener('pointermove', e=>{ if(!dragging) return; yawOffset = Math.max(-1.1, Math.min(1.1, yawOffset + (e.clientX-downX)*.006)); downX=e.clientX; });
+
+/* ---------- world light ---------- */
+function brighten(){
+  const f = litCount/N;
+  const h0=hemi.intensity, f0=scene.fog.density;
+  tween(RM?0:1200, e=>{ hemi.intensity = h0 + ((.55+f*.55)-h0)*e; scene.fog.density = f0 + ((.03-f*.012)-f0)*e; }, easeInOut);
+}
+function igniteLantern(i, helped){
+  const L = lanterns[i]; if (!L) return;
+  const col = helped ? 0xbfe3ff : 0xffc77a;
+  L.lampMat.color.setHex(helped?0xdff3ff:0xffe6b0); L.lampMat.emissive.setHex(col); L.light.color.setHex(col);
+  tween(RM?0:700, e=>{ L.lampMat.emissiveIntensity = e*1.4; L.light.intensity = e*(helped?1:1.6); L.lamp.scale.setScalar(.8+.5*Math.sin(e*Math.PI)+.2*e); }, t=>t).then(()=>{ L.base = L.light.intensity; });
+  burst(L.lamp.getWorldPosition(new T.Vector3()), helped?0xbfe3ff:0xffd98c, 26);
+}
+const bursts=[];
+function burst(at, color, n){ if (RM) return;
+  const a=new Float32Array(n*3), v=[]; for(let i=0;i<n;i++){ a.set([at.x,at.y,at.z],i*3); v.push(new T.Vector3((Math.random()-.5)*2.4,Math.random()*2.6+.4,(Math.random()-.5)*2.4)); }
+  const g=new T.BufferGeometry(); g.setAttribute('position',new T.BufferAttribute(a,3));
+  const p=new T.Points(g,new T.PointsMaterial({map:glowTex,size:.3,color,transparent:true,depthWrite:false,blending:T.AdditiveBlending})); scene.add(p);
+  bursts.push({p,v,t:0}); }
+
+/* ---------- game state ---------- */
+let pending = 0, gap = 0, arrived = 0, litCount = 0, lives = 3, xp = 0, chain = Promise.resolve(), typedText = '', busyCast = false;
+const $ = id => document.getElementById(id);
+const input = $('spelling'), statusEl = $('status'), toastEl = $('toast');
+function toast(t){ toastEl.textContent=t; toastEl.classList.add('on'); clearTimeout(toast.h); toast.h=setTimeout(()=>toastEl.classList.remove('on'), 2200); }
+function setXp(v){ xp=v; $('hudXp').textContent='✦ '+xp+' XP'; }
+function showWord(){
+  if (gap>=N){ $('wordNo').textContent='Trail complete'; $('promptTitle').textContent='Your hero is walking to the gate.'; $('hint').textContent=''; return; }
+  const q=WORDS[gap]; $('wordNo').textContent=`Word ${gap+1} of ${N}`;
+  $('hint').innerHTML=`<b>${q.w}</b> · ${q.bg} · “${q.s}”`;
+  $('hudTrail').textContent=`Enchanted Forest · Trail 1 · ${gap} / ${N}`;
+}
+input.addEventListener('input', ()=>{ const v=input.value.toLowerCase().replace(/[^a-z]/g,'').slice(0,11); if (v!==input.value) input.value=v; typedText=v; syncTyped(v); });
+
+async function cast(forceWrong){
+  if (gap>=N || busyCast) return;
+  const g=gap, q=WORDS[g], text=typedText;
+  if (!text){ statusEl.textContent='Type the letters first. Each one becomes a stone.'; statusEl.className='status'; input.focus(); return; }
+  const ok = !forceWrong && text===q.w;
+  busyCast = true;
+  gap++; typedText=''; input.value=''; showWord(); // logic moves on at once: typing is never blocked
+  busyCast = false;
+  if (ok){
+    statusEl.textContent=`“${q.w}” locks into a golden bridge. +5 XP`; statusEl.className='status good';
+    setXp(xp+5); litCount++;
+  } else {
+    statusEl.textContent=`The wisp helps you across. The word was “${q.w}”. It will come back in review.`; statusEl.className='status help';
+    lives=Math.max(0,lives-1); [...document.querySelectorAll('.gem')].forEach((el,i)=>el.classList.toggle('dim', i>=lives));
+  }
+  const list = stones[g]; pending++;
+  chain = chain.then(async ()=>{
+    if (ok){
+      list.forEach(s=>setStoneKind(s,'gold','#fff2cf'));
+      await stretchBridge(g);
+    } else {
+      list.forEach(s=>setStoneKind(s,'wrong','#8f86ad'));
+      await wait(250);
+      await Promise.all(list.splice(0).map((s,i)=>wait(i*60).then(()=>sinkStone(s))));
+      wispFree=false; wispTarget.copy(edgeA(g)).add(new T.Vector3(0,1.2,0)); await wait(500);
+      for (let k=0;k<q.w.length;k++){ makeStone(g,q.w[k],k,'wisp'); wispTarget.copy(typedSlot(g,k)).add(new T.Vector3(0,1.1,0)); await wait(120); }
+      await wait(250); await stretchBridge(g); wispFree=true;
+    }
+    await crossGap(g);
+    arrived = g+1; focusGap = true;
+    igniteLantern(g+1, !ok); if (ok) brighten();
+    toast(ok ? 'A lantern lights. The sky grows brighter.' : 'A blue lantern: this word returns in review.');
+    pending--;
+    if (g+1===N) await finish();
+  });
+}
+async function finish(){
+  await wait(600);
+  tween(RM?0:1400, e=>{ gate.inner.material.color.setRGB(.16+.84*e, .13+.7*e, .31+.4*e); gate.ring.rotation.z=e*Math.PI; }, easeInOut);
+  for (let i=0;i<4;i++){ setTimeout(()=>burst(gate.ring.getWorldPosition(new T.Vector3()), i%2?0xffd98c:0xc9a6ff, 40), RM?0:i*260); }
+  setXp(xp+25); orbitDone = !RM; orbitT = Math.atan2(camPos.z-topOf(N).z, camPos.x-topOf(N).x);
+  $('doneText').textContent = `+25 XP treasure · ${litCount} gold lanterns, ${N-litCount} blue for review.`;
+  await wait(1200); $('done').classList.add('on'); $('hudTrail').textContent=`Enchanted Forest · Trail 1 · ${N} / ${N}`;
+}
+async function typeOut(w){ input.focus({preventScroll:true}); input.value=''; typedText=''; syncTyped('');
+  for (let i=1;i<=w.length;i++){ input.value=w.slice(0,i); input.dispatchEvent(new Event('input')); await wait(120); } }
+$('form').addEventListener('submit', e=>{ e.preventDefault(); cast(false); });
+$('auto').onclick = async ()=>{ if (gap>=N) return; await typeOut(WORDS[gap].w); cast(false); };
+$('miss').onclick = async ()=>{ if (gap>=N) return; const w=WORDS[gap].w; await typeOut(w.slice(0,2)+w[3]+w[2]+w.slice(4)); cast(true); };
+$('hear').onclick = ()=>{ if (gap>=N) return; try{ const u=new SpeechSynthesisUtterance(WORDS[gap].w); u.lang='en-GB'; u.rate=.8; speechSynthesis.cancel(); speechSynthesis.speak(u);}catch(e){}
+  wispFree=false; wispTarget.copy(hero.position).add(new T.Vector3(0,2.1,0)); setTimeout(()=>wispFree=true, 900); };
+$('again').onclick = ()=>{ location.hash=''; location.reload(); };
+
+/* ---------- loop ---------- */
+hero.position.copy(standAt(0)); hero.rotation.y = Math.atan2(dirOf(0).x, dirOf(0).z);
+wisp.position.copy(hero.position).add(new T.Vector3(0,1.8,0));
+if (RM){ followK = 1; }
+showWord();
+function resize(){ const w=stage.clientWidth, h=stage.clientHeight; renderer.setSize(w,h,false); camera.aspect=w/h; narrow = w/h < 1.2; camera.fov = narrow ? 60 : 48; camera.updateProjectionMatrix(); }
+new ResizeObserver(resize).observe(stage); resize();
+let last = performance.now(), visible = true;
+new IntersectionObserver(es=>{ visible = es[0].isIntersecting; }).observe(stage);
+function frame(now){
+  requestAnimationFrame(frame);
+  if (!visible || document.hidden){ last = now; return; }
+  const dt = Math.min(.05,(now-last)/1000); last = now; const t = now/1000;
+  for (let i=tweens.length-1;i>=0;i--){ const tw=tweens[i], k=Math.min(1,(now-tw.t0)/tw.dur); tw.fn(tw.ease(k)); if(k>=1){ tweens.splice(i,1); tw.res(); } }
+  // hero idle / walk
+  body.position.y = walking ? Math.abs(Math.sin(t*9))*.09 : (RM?0:Math.sin(t*2)*.02);
+  body.rotation.z = walking ? Math.sin(t*9)*.06 : 0;
+  orb.scale.setScalar(1+Math.sin(t*3)*.12);
+  // wisp
+  const want = wispFree ? hero.position.clone().add(new T.Vector3(Math.cos(t*1.1)*1.15, 2.05+Math.sin(t*2.1)*.15, Math.sin(t*1.1)*1.15)) : wispTarget;
+  wisp.position.lerp(want, RM?1:1-Math.pow(.004,dt));
+  // fireflies + clouds
+  if (!RM){ for(let i=0;i<FF;i++){ const b=i*3; ffPos[b]=ffBase[b]+Math.sin(t*.5+i)*.6; ffPos[b+1]=ffBase[b+1]+Math.sin(t*.8+i*1.7)*.35; ffPos[b+2]=ffBase[b+2]+Math.cos(t*.4+i)*.6; }
+    ffGeo.attributes.position.needsUpdate=true; clouds.forEach((c,i)=>{ c.position.x += dt*(.15+(i%5)*.05); if (c.position.x>N*SPACING+12) c.position.x=-12; }); }
+  else if (t<1) { ffPos.set(ffBase); ffGeo.attributes.position.needsUpdate=true; }
+  // typed stones hover
+  if (gap<N) stones[gap].forEach((s,k)=>{ if(!RM) s.sp.position.y=.5+Math.sin(t*3+k*.6)*.05; });
+  // lantern flame flicker
+  lanterns.forEach(L=>{ if(L && L.base && !RM) L.light.intensity = L.base + Math.sin(t*13+L.post.id)*.12; });
+  // bursts
+  for (let i=bursts.length-1;i>=0;i--){ const b=bursts[i]; b.t+=dt; const a=b.p.geometry.attributes.position.array;
+    b.v.forEach((v,j)=>{ v.y-=dt*1.6; a[j*3]+=v.x*dt; a[j*3+1]+=v.y*dt; a[j*3+2]+=v.z*dt; });
+    b.p.geometry.attributes.position.needsUpdate=true; b.p.material.opacity=Math.max(0,1-b.t/1.4);
+    if (b.t>1.4){ scene.remove(b.p); b.p.geometry.dispose(); bursts.splice(i,1); } }
+  followK = Math.min(1, followK + dt*.4);
+  updateCamera(dt);
+  renderer.render(scene, camera);
+}
+requestAnimationFrame(frame);
+if (location.search.includes('debug')) window.__sq = { state: () => ({gap, arrived, litCount, lives, xp, walking, stones: stones.map(l=>l.length)}), hero, camera };
+})();
+</script>

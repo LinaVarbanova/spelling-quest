@@ -45,6 +45,30 @@ Regular quests have three lives (two in the last two worlds); missed words retur
 
 The initial learning path is sorted **from simpler to more complex spelling**, not alphabetically. `src/difficulty.ts` combines length, vowel teams, doubled consonants, final-e patterns, less common consonant sequences, soft c/g and longer endings. An explicit reference table raises selected irregular words such as `cough`, `cupboard`, `hygiene`, `environment` and `rhythm` even when they are short. Ties use length, alphabetical order and then original ID for deterministic results. These are transparent game-derived estimates, **not official competition levels, measured student difficulty, or a claim that every learner finds the same words hard**. The Word Vault defaults to difficulty and can switch to alphabetical or official-list order; each word shows its band and pattern reasons. Worlds retain their themed mechanics, hints, life budgets, boss battles and optional championship timer. Review prioritizes overdue words, then a combined error-rate/mistake-frequency score and earliest due date. Mastery requires three successful sessions separated by at least 24 hours; a mistake resets the word’s success streak. The default review schedule is 1, 3, 7, 14, 30 days and is injectable in `recordAnswer` for alternative schedules. Per-word history retains typed/spoken provenance, hints, timestamps and outcomes.
 
+## Sky Trail 3D quest style
+
+Quests now play across a chain of floating islands. Your own typed or confirmed spoken letters rise as rune stones; a correct spell builds a gold bridge and lights the next island. On a regular miss the wisp builds the submitted word's correct spelling in blue, marking it for review. Boss misses keep you at the same gap; correct spells break one guardian shield segment. The last island opens its gate or celebrates the defeated shield, with a victory camera orbit. Six world palettes, props and light types match the existing adventure playground.
+
+On landscape tablets and desktop screens, the path stays beside the spellbook and remains visible while scrolling through microphone controls. Narrower screens keep a stacked layout.
+
+The 3D scene is presentation only: all 250 official words, complexity ordering, hints, typing and microphone controls, scoring, lives, XP, spaced repetition, Word Vault, achievements, progress storage and import/export remain in the existing game. The answer is never passed to the scene before submission. Next never waits for animation; queued crossings speed up. No new save format or migration is needed.
+
+OS reduced motion and the in-game motion setting replace movement with immediate state changes and render only on demand. The scene pauses rendering offscreen and in hidden tabs; its presentation queue fast-forwards there. Without WebGL, after context loss or on an initialization error, the original illustrated quest banner returns and the HTML game stays playable. All scene art and glow/letter textures are procedural, bundled locally and precached for offline use. Stars and fireflies use point batches; clouds use batched point-sprite billboards. Quest DPR is capped at 1.75 (1.5 for coarse pointers), frame rate at approximately 30 FPS, with no shadow maps. The new scene is lazy-loaded.
+
+### Preserved previous version
+
+The full pre-Sky-Trail version is preserved on branch [`backup/pre-sky-trail-2026-11-07`](https://github.com/LinaVarbanova/spelling-quest/tree/backup/pre-sky-trail-2026-11-07) and annotated tag `pre-sky-trail-2026-11-07`, at commit `f63adb6`. To run that version separately without resetting the new design:
+
+```sh
+git fetch origin --tags
+git worktree add ../spelling-quest-classic pre-sky-trail-2026-11-07
+cd ../spelling-quest-classic
+npm ci
+npm run dev -- --port 5175
+```
+
+Browser progress remains in IndexedDB per origin; export it from Adventurer before moving to another host or port. A Git backup preserves code, not browser play data. The six ordered implementation commits and verification record are described in `docs/SKY_TRAIL_MILESTONES.md`; `quest3d/sky-trail.html` is the supplied reference prototype, not the app entry point.
+
 ## Two spelling modes
 
 **Listen & Type:** select an English voice, replay pronunciation and type the spelling. The answer is not rendered during an active round. Optional translation and original sentence hints exist only in early non-boss quests. Sentence audio necessarily contains the word. After submission the official word, translation and sentence appear.
@@ -90,12 +114,13 @@ No client routing paths are required; screens use local React state, avoiding Pa
 - `src/local-recognizer.ts`: optional local Vosk implementation of the recognizer contract.
 - `src/Art.tsx`: separate high-resolution 3D realm posters and lightweight SVG crests/treasure artwork.
 - `src/IslandPlayground.tsx` and `src/playground-scene.ts`: a lazy-loaded original Three.js playground, with draggable islands, keyboard-accessible world controls, reduced-motion support and a non-WebGL fallback.
+- `src/QuestScene.tsx` and `src/quest-scene.ts`: thin lazy React wrapper and standalone Sky Trail presentation engine; scoring stays in `game.ts`.
 - `src/main.tsx`: responsive screens, game loop and recognition confirmation.
 - `scripts/validate-words.mjs`: build-time integrity gate, exact 250 entries, contiguous IDs, uniqueness and nonempty original fields. The authoritative JSON is unmodified.
 
 ## Verification and device limits
 
-Automated checks cover vocabulary coverage, scoring, mastery intervals, quest unlocks, backups, IndexedDB, letter parsing, quest completion, persistence, offline refresh, all-word access, tablet viewport fit and spoken confirmation and a checkbox-free browser-service default with a **mocked browser recognition service**. Browser tests run against the production bundle. Hardware microphone/TTS testing cannot be simulated by those checks.
+Automated checks cover vocabulary coverage, scoring, mastery intervals, quest unlocks, backups, IndexedDB, letter parsing, quest completion, persistence, offline refresh, all-word access, tablet viewport fit and spoken confirmation and a checkbox-free browser-service default with a **mocked browser recognition service**. Browser tests run against the production bundle. Hardware microphone/TTS testing cannot be simulated by those checks. Sky Trail checks additionally cover fixed rune slots, queued gold/blue crossings, boss retries/shields, gate completion, reduced-motion readiness/rendering, WebGL/context-loss fallback, resource disposal and pronunciation activity. Actual touch drag, sustained 30 FPS/heat/memory, GPU context recovery, voice playback and recording with long pauses, PWA installation, offline behavior and storage persistence still need hands-on checks on Android Chrome, macOS Chrome/Safari and Windows Chrome/Edge. Automated Chromium viewport checks are not real-device certification.
 
 Before release to a child, verify on actual devices:
 
@@ -109,9 +134,9 @@ Web Speech recognition is not universally supported (notably Firefox) and can va
 
 ## Assets and licenses
 
-The six current realms are original procedural 3D scenes in `src/playground-scene.ts`. The live hero renders real WebGL geometry; cards use individual 960px posters and quest scenes use individual 2400px posters. No enlarged atlas crops are used. Source notes and regeneration instructions are in `public/worlds/ARTWORK.md`. Run `npm run render:worlds` while the dev server is running to regenerate the committed assets using Playwright.
+The six current realms are original procedural 3D scenes in `src/playground-scene.ts`. The live hero renders real WebGL geometry; cards use individual 960px posters and non-WebGL quest fallbacks use individual 2400px posters. No enlarged atlas crops are used. Source notes and regeneration instructions are in `public/worlds/ARTWORK.md`. Run `npm run render:worlds` while the dev server is running to regenerate the committed assets using Playwright.
 
-Crest, treasure and app icon SVG artwork is original code. No purchased models, franchise art, external fonts, image CDNs or recorded sounds. Fonts are installed system fonts; optional success audio uses Web Audio and defaults off. Motion respects both OS reduced-motion and Settings. The WebGL module is lazy-loaded, rendering is capped at approximately 30 FPS and pauses offscreen/in hidden tabs; reduced-motion mode uses static frames updated only by interaction. Pixel ratio is capped at 2. Context loss or lack of WebGL falls back to original static posters with the same HTML controls. Actual GPU performance on Android tablet hardware remains unverified.
+Crest, treasure and app icon SVG artwork is original code. No purchased models, franchise art, external fonts, image CDNs or recorded sounds. Fonts are installed system fonts; optional success audio uses Web Audio and defaults off. Motion respects both OS reduced-motion and Settings. The WebGL module is lazy-loaded, rendering is capped at approximately 30 FPS and pauses offscreen/in hidden tabs; reduced-motion mode uses static frames updated only by interaction. Pixel ratio is capped at 2. Context loss or lack of WebGL falls back to original static posters with the same HTML controls. Actual GPU performance on Android tablet hardware remains unverified. The Sky Trail quest scene uses the stricter DPR caps above; its geometry tests cover all six worlds with 25 gaps and a guardian, under 25k triangles.
 
 The earlier ImageGen atlas remains in the repository as design history but is excluded from offline precaching. All active artwork and the 3D code are cached by the PWA; no remote assets or paid APIs are needed.
 
