@@ -79,6 +79,14 @@ Stop and inspect the letter tiles. Correct any misrecognized letters, then press
 
 The `SpellingRecognizer` interface remains modular. An experimental local Vosk adapter remains in `src/local-recognizer.ts` for possible future integration, but is not exposed, loaded or downloaded by the current app. There is no automatic local-engine switch. Microphone recording starts only when the player presses **Start recording**; choosing the browser service does not keep the microphone continuously recording.
 
+## Cloud Market and character customization
+
+Open **Shop** from the navigation, the token balance or the Adventurer profile. Preview and collect Ember Fox, Moon Owl or Prism Dragon companions; choose robes, hats, staffs and magical effects. Purchases unlock items permanently in the current save. Press **Equip** to use them, or equip the original free item / Solo adventurer to remove an accessory or pet. The profile portrait and next Sky Trail quest show the equipped character, with the companion following the hero. The guiding wisp remains available for missed words. Motion effects respect reduced motion. Live quest characters require WebGL; shop and profile portraits still work with SVG when WebGL is unavailable.
+
+Every **10 total XP earned gives one token**, including all XP from earlier saves. The balance is `floor(total XP / 10) − tokens spent`; purchases never reduce XP or level. Spelling and quest rewards keep their existing rules, and there are no real-money purchases, boosts, subscriptions, pet upkeep or penalties. Previewing and changing equipped items are free. There is no random loot or timed shop stock.
+
+The optional `collection` field in the existing progress backup stores owned item IDs, total spending and the equipped item for each slot. Older saves without it retain all progress and receive the default free outfit; their XP supplies their token balance immediately. Import validates item IDs, ownership, equipment slots and the spending total before accepting the backup. Import replaces the collection along with the rest of the save; export first to keep a copy. Everything works locally and offline after the app has been cached, with no account or server. The pre-shop Sky Trail version is preserved on branch `backup/pre-pet-shop-2026-11-07` and tag `pre-pet-shop-2026-11-07`.
+
 ## Persistence and backups
 
 IndexedDB through `idb` stores a versioned progress object. Export/import is in Adventurer. Import validates the schema, vocabulary IDs, counters and attempt history and replaces current state. Export first to preserve the old device state. Devices do not sync. Browser data clearing/private mode/storage eviction can remove progress. Failed persistence is reported visibly and export remains available. Speech and comfort preferences are visit-local. No audio recordings are stored by the app.
@@ -109,6 +117,8 @@ No client routing paths are required; screens use local React state, avoiding Pa
 
 - `src/game.ts`: source-only curriculum, complexity-based world assignment, deterministic scoring, progression, review and backward-compatible backup migration.
 - `src/difficulty.ts`: transparent spelling-complexity rules and curated irregular-spelling reference scores.
+- `src/shop.ts`: deterministic earned-token balance, item catalog, ownership/equipment and backup validation.
+- `src/Shop.tsx` and `src/companion-scene.ts`: original SVG wardrobe previews and low-poly quest companions.
 - `src/storage.ts`: `ProgressStore` interface and IndexedDB adapter.
 - `src/speech.ts`: `PromptSpeaker`, `SpellingRecognizer`, browser adapter, conservative letter parser.
 - `src/local-recognizer.ts`: optional local Vosk implementation of the recognizer contract.
