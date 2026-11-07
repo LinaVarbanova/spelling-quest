@@ -449,3 +449,75 @@ test("vault defaults to complexity and offers alphabetical reference order", asy
     "Champion’s Kingdom",
   );
 });
+
+test("repeated Chrome transcript prefixes collapse without changing the intended spelling", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    class RollingRecognition {
+      onresult: ((e: unknown) => void) | null = null;
+      onerror: ((e: unknown) => void) | null = null;
+      onend: (() => void) | null = null;
+      start() {
+        setTimeout(
+          () =>
+            this.onresult?.({
+              resultIndex: 0,
+              results: [
+                "c",
+                "c",
+                "c a",
+                "c a n",
+                "c a n n",
+                "c a n n a",
+                "c a n n a r",
+                "c a n n a r y",
+              ].map((transcript) => ({
+                isFinal: true,
+                0: { transcript, confidence: 0.95 },
+              })),
+            }),
+          30,
+        );
+      }
+      stop() {
+        this.onend?.();
+      }
+      abort() {}
+    }
+    Object.defineProperty(window, "SpeechRecognition", {
+      value: RollingRecognition,
+    });
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Word Vault", exact: true }).click();
+  await page.getByLabel("Search official words").fill("canary");
+  await page.getByRole("button", { name: "Practise", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Listen & Spell Aloud", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Start recording", exact: true })
+    .click();
+  await expect(page.locator(".letters span")).toHaveCount(7);
+  await expect(
+    page.getByLabel("Confirm or correct recognized letters"),
+  ).toHaveValue("cannary");
+  await expect(
+    page.getByText("The browser revised overlapping results.", {
+      exact: false,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Confirm letters & cast spell" }),
+  ).toBeDisabled();
+  await expect(page.locator(".xp")).toContainText("0 XP");
+  await page
+    .getByRole("button", { name: "Stop recording", exact: true })
+    .click();
+  await page.getByLabel("Confirm or correct recognized letters").fill("canary");
+  await page
+    .getByRole("button", { name: "Confirm letters & cast spell" })
+    .click();
+  await expect(page.locator(".feedback")).toContainText("+20 XP");
+});

@@ -39,6 +39,7 @@ export type Candidate = {
   confidence: number;
   ambiguous: boolean;
   transcript: string;
+  revisionDetected?: boolean;
 };
 export interface SpellingRecognizer {
   capability(): { supported: boolean; local: boolean; reason?: string };
@@ -137,6 +138,80 @@ export function parseLetters(transcript: string, confidence = 0): Candidate {
   }
   return { letters, confidence, ambiguous, transcript };
 }
+export type RecognitionSegment = {
+  text: string;
+  confidence: number;
+  final: boolean;
+};
+/** Some browser services put successive full-phrase revisions in separate result slots.
+ * Collapse growing snapshots, never blindly deduplicate letters (B E E must keep both Es).
+ * This does not consult the target word or correct the learner's spelling.
+ */
+export function mergeRecognitionSegments(
+  segments: RecognitionSegment[],
+  includeDraft = false,
+): Candidate | null {
+  const stable = segments.filter((s) => s.final && s.text.trim());
+  const drafts = segments.filter((s) => !s.final && s.text.trim());
+  if (includeDraft && drafts.length)
+    stable.push({ ...drafts[drafts.length - 1], confidence: 0.3 });
+  if (!stable.length) return null;
+  const output: RecognitionSegment[] = [];
+  let run: RecognitionSegment[] = [],
+    keys: string[][] = [],
+    rolling = false,
+    revised = false;
+  const key = (text: string) => {
+    const parsed = parseLetters(text, 1);
+    return !parsed.ambiguous && parsed.letters.length
+      ? parsed.letters
+      : text.toLowerCase().trim().split(/\s+/);
+  };
+  const flush = () => {
+    if (rolling) {
+      output.push(run[run.length - 1]);
+      revised = true;
+    } else output.push(...run);
+    run = [];
+    keys = [];
+    rolling = false;
+  };
+  for (const part of stable) {
+    const next = key(part.text),
+      previous = keys[keys.length - 1];
+    if (!previous) {
+      run.push(part);
+      keys.push(next);
+      continue;
+    }
+    const prefix =
+      previous.length <= next.length &&
+      previous.every((letter, i) => letter === next[i]);
+    const same = previous.length === next.length && prefix;
+    // Once a growing full-phrase revision is observed, later edits of that phrase replace it too.
+    const revisesPhrase = rolling && next.length > 1 && next[0] === keys[0][0];
+    if (prefix || revisesPhrase) {
+      if (!same) rolling = true;
+      run.push(part);
+      keys.push(next);
+    } else {
+      flush();
+      run.push(part);
+      keys.push(next);
+    }
+  }
+  flush();
+  const candidate = parseLetters(
+    output.map((p) => p.text.trim()).join(" "),
+    Math.min(...output.map((p) => p.confidence)),
+  );
+  return {
+    ...candidate,
+    ambiguous: candidate.ambiguous || revised,
+    revisionDetected: revised,
+  };
+}
+
 interface RecognitionEvent {
   results: {
     isFinal: boolean;
@@ -210,22 +285,20 @@ export class BrowserSpellingRecognizer implements SpellingRecognizer {
     }
     this.capturing = true;
     this.status = "listening";
-    const committed: { text: string; confidence: number }[] = [];
-    let session: { text: string; confidence: number }[] = [];
+    const committed: RecognitionSegment[] = [];
+    let session: RecognitionSegment[] = [];
     let ended = false,
       rapidEnds = 0;
-    const publish = () => {
-      const parts = [...committed, ...session].filter((p) => p.text.trim());
-      if (parts.length)
-        onCandidate(
-          parseLetters(
-            parts.map((p) => p.text).join(" "),
-            Math.min(...parts.map((p) => p.confidence)),
-          ),
-        );
+    const publish = (finalizing = false) => {
+      const candidate = mergeRecognitionSegments(
+        [...committed, ...session],
+        finalizing,
+      );
+      if (candidate) onCandidate(candidate);
     };
     const commitSession = () => {
-      committed.push(...session);
+      // An interim hypothesis from a session that ended on silence must never become permanent.
+      committed.push(...session.filter((part) => part.final));
       session = [];
     };
     const complete = (failed = false) => {
@@ -234,7 +307,7 @@ export class BrowserSpellingRecognizer implements SpellingRecognizer {
       this.capturing = false;
       clearTimeout(this.restartTimer);
       clearTimeout(this.finishTimer);
-      publish();
+      publish(true);
       this.status = failed ? "error" : "confirmation";
       const r = this.recognition;
       this.recognition = undefined;
@@ -258,7 +331,7 @@ export class BrowserSpellingRecognizer implements SpellingRecognizer {
       const started = Date.now();
       r.lang = locale;
       r.continuous = true;
-      r.interimResults = true;
+      r.interimResults = false;
       if (local || "processLocally" in r) r.processLocally = local;
       r.onresult = (e) => {
         if (this.recognition !== r || ended) return;
@@ -266,6 +339,7 @@ export class BrowserSpellingRecognizer implements SpellingRecognizer {
         session = Array.from(e.results, (result) => ({
           text: result[0].transcript,
           confidence: result.isFinal ? result[0].confidence : 0.3,
+          final: result.isFinal,
         }));
         publish();
       };
@@ -294,12 +368,12 @@ export class BrowserSpellingRecognizer implements SpellingRecognizer {
       r.onend = () => {
         if (this.recognition !== r || ended) return;
         this.recognition = undefined;
-        commitSession();
-        publish();
         if (!this.capturing) {
           complete();
           return;
         }
+        commitSession();
+        publish();
         // Browsers can end continuous sessions on silence or service limits. Keep the user-controlled recording open.
         rapidEnds = Date.now() - started < 500 ? rapidEnds + 1 : 0;
         if (rapidEnds >= 3) {

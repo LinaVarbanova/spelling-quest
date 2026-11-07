@@ -766,7 +766,7 @@ function App() {
                     {finishing
                       ? "Finishing recording… waiting for the final letters."
                       : listening
-                        ? "Recording letters… take your time. Press Stop recording when you finish."
+                        ? "Recording letters… take your time. Complete letters appear when the browser finishes a phrase. Press Stop recording when you finish."
                         : candidate
                           ? "Transcription ready. Check every letter before scoring."
                           : "Microphone off. Nothing is scored until you confirm."}
@@ -785,9 +785,11 @@ function App() {
                         ))}
                       </div>
                       <p>
-                        {candidate.ambiguous
-                          ? "Recognition is uncertain. Correct any missing or mistaken letters."
-                          : "Check the letters. Recognition can confuse B/P or M/N."}
+                        {candidate.revisionDetected
+                          ? "The browser revised overlapping results. We kept the latest revision. Please check every letter, including doubled letters."
+                          : candidate.ambiguous
+                            ? "Recognition is uncertain. Correct any missing or mistaken letters."
+                            : "Check the letters. Recognition can confuse B/P or M/N."}
                       </p>
                     </div>
                   )}

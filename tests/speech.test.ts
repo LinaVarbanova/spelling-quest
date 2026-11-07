@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { BrowserSpellingRecognizer } from "../src/speech";
+import {
+  BrowserSpellingRecognizer,
+  mergeRecognitionSegments,
+} from "../src/speech";
 type Result = {
   isFinal: boolean;
   0: { transcript: string; confidence: number };
@@ -60,7 +63,7 @@ describe("user-controlled letter recording", () => {
   it("uses continuous browser service and does not finish on a result", () => {
     const { recognizer, native, end, candidate } = setup();
     expect(native.continuous).toBe(true);
-    expect(native.interimResults).toBe(true);
+    expect(native.interimResults).toBe(false);
     expect(native.processLocally).toBe(false);
     native.result({ text: "ay bee" });
     expect(candidate.mock.lastCall?.[0].letters.join("")).toBe("ab");
@@ -142,5 +145,100 @@ describe("user-controlled letter recording", () => {
     expect(end).toHaveBeenCalledOnce();
     vi.advanceTimersByTime(5000);
     expect(FakeRecognition.instances).toHaveLength(1);
+  });
+});
+
+describe("browser transcript revisions", () => {
+  const final = (text: string) => ({ text, confidence: 0.95, final: true });
+  it("collapses the growing phrase slots seen in the phone screenshot", () => {
+    const parts = [
+      "c",
+      "c",
+      "c a",
+      "c a n",
+      "c a n n",
+      "c a n n",
+      "c a n n a",
+      "c a n n a r",
+      "c a n n a r y",
+    ].map(final);
+    const result = mergeRecognitionSegments(parts)!;
+    expect(result.letters.join("")).toBe("cannary");
+    expect(result.transcript).toBe("c a n n a r y");
+    expect(result.ambiguous).toBe(true);
+    expect(result.revisionDetected).toBe(true);
+  });
+  it("uses the latest correction rather than appending an earlier wrong hypothesis", () => {
+    const result = mergeRecognitionSegments(
+      ["c", "c a", "c a n n", "c a n a r y"].map(final),
+    )!;
+    expect(result.letters.join("")).toBe("canary");
+  });
+  it("preserves legitimate repeated isolated letters and repeated letters within a phrase", () => {
+    expect(
+      mergeRecognitionSegments(["bee", "ee", "ee"].map(final))?.letters.join(
+        "",
+      ),
+    ).toBe("bee");
+    expect(
+      mergeRecognitionSegments(["see", "see"].map(final))?.letters.join(""),
+    ).toBe("cc");
+    expect(
+      mergeRecognitionSegments([final("a d d i t i o n a l")])?.letters.join(
+        "",
+      ),
+    ).toBe("additional");
+  });
+  it("joins distinct final chunks without deleting overlaps by letter value alone", () => {
+    expect(
+      mergeRecognitionSegments(
+        ["a d", "d i", "t i o n a l"].map(final),
+      )?.letters.join(""),
+    ).toBe("additional");
+  });
+  it("does not score or permanently commit drafts from a silence restart", () => {
+    const { recognizer, native, candidate } = setup();
+    native.result({ text: "c", final: false });
+    expect(candidate).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1000);
+    native.onend?.();
+    vi.advanceTimersByTime(350);
+    const next = FakeRecognition.instances[1];
+    next.result({ text: "c a n a r y" });
+    expect(candidate.mock.lastCall?.[0].letters.join("")).toBe("canary");
+    recognizer.stop();
+  });
+  it("ignores duplicate callbacks for the same result snapshot", () => {
+    const { recognizer, native, candidate } = setup();
+    native.result({ text: "b e e" });
+    native.result({ text: "b e e" });
+    expect(candidate.mock.lastCall?.[0].letters.join("")).toBe("bee");
+    recognizer.stop();
+  });
+  it("handles rolling full transcripts across browser restarts without appending prefixes", () => {
+    const { recognizer, native, candidate } = setup();
+    native.result({ text: "c a" });
+    vi.advanceTimersByTime(1000);
+    native.onend?.();
+    vi.advanceTimersByTime(350);
+    FakeRecognition.instances[1].result({ text: "c a n a r y" });
+    expect(candidate.mock.lastCall?.[0].letters.join("")).toBe("canary");
+    expect(candidate.mock.lastCall?.[0].ambiguous).toBe(true);
+    recognizer.stop();
+  });
+  it("works through the prefixed WebKit API without enabling interim callbacks", () => {
+    vi.stubGlobal("window", {
+      webkitSpeechRecognition: FakeRecognition,
+      isSecureContext: true,
+    });
+    const { recognizer, native, candidate } = setup();
+    expect(native.interimResults).toBe(false);
+    native.result(
+      ...["c", "c a", "c a n", "c a n a r y"].map((text) => ({ text })),
+    );
+    recognizer.finish();
+    native.onend?.();
+    expect(candidate.mock.lastCall?.[0].letters.join("")).toBe("canary");
+    recognizer.stop();
   });
 });
