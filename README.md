@@ -97,7 +97,7 @@ No client routing paths are required; screens use local React state, avoiding Pa
 - `src/storage.ts`: `ProgressStore` interface and IndexedDB adapter.
 - `src/speech.ts`: `PromptSpeaker`, `SpellingRecognizer`, browser adapter, conservative letter parser.
 - `src/local-recognizer.ts`: optional local Vosk implementation of the recognizer contract.
-- `src/Art.tsx`: original lightweight vector environments and guardians.
+- `src/Art.tsx`: six regional viewports into original illustrated fairy realms, with lightweight SVG crests and treasure artwork.
 - `src/main.tsx`: responsive screens, game loop and recognition confirmation.
 - `scripts/validate-words.mjs`: build-time integrity gate, exact 250 entries, contiguous IDs, uniqueness and nonempty original fields. The authoritative JSON is unmodified.
 
@@ -117,6 +117,6 @@ Web Speech recognition is not universally supported (notably Firefox) and can va
 
 ## Assets and licenses
 
-All environment, guardian, crest and app icon SVG artwork is original code in this repository; no third-party franchise art, external fonts, image CDNs or recorded sound files. Fonts are installed system fonts. Optional success tone is synthesized with Web Audio and defaults off. Decorative motion respects OS reduced-motion and can be disabled in Settings. App shell remains ~334 KiB precached; optional Vosk is separate.
+The fairy-world environment is original ImageGen artwork created for this game, compressed into a single 663 KiB WebP served locally and cached offline. Six SVG viewports reuse that asset without downloading it six times. Source notes are in `public/worlds/ARTWORK.md`. Crest, treasure and app icon SVG artwork is original code in this repository; no third-party franchise art, external fonts, image CDNs or recorded sound files. Fonts are installed system fonts. Optional success tone is synthesized with Web Audio and defaults off. Decorative motion respects OS reduced-motion and can be disabled in Settings. The precached app and illustrated artwork total approximately 1 MiB; optional Vosk is separate.
 
 Third-party runtime packages: React (MIT), idb (ISC), vosk-browser/Vosk (Apache-2.0; see their distributed licenses). Acoustic models have separate licenses: consult the selected model’s official catalog entry. The competition curriculum is supplied by the project; its source URL is preserved in the JSON. The app does not claim ownership of that official source.

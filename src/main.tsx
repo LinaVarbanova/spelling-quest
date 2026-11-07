@@ -452,7 +452,15 @@ function App() {
                       <button
                         className="world-art"
                         aria-label={`Explore ${w.name}`}
-                        onClick={() => setWorld(i)}
+                        onClick={() => {
+                          setWorld(i);
+                          document
+                            .getElementById("world-quests")
+                            ?.scrollIntoView({
+                              behavior: reduced ? "instant" : "smooth",
+                              block: "center",
+                            });
+                        }}
                       >
                         <WorldArt world={i} />
                         <b>{String(i + 1).padStart(2, "0")}</b>
@@ -479,7 +487,15 @@ function App() {
                           </span>
                           <button
                             aria-label={`Show ${w.name} quests`}
-                            onClick={() => setWorld(i)}
+                            onClick={() => {
+                              setWorld(i);
+                              document
+                                .getElementById("world-quests")
+                                ?.scrollIntoView({
+                                  behavior: reduced ? "instant" : "smooth",
+                                  block: "center",
+                                });
+                            }}
                           >
                             →
                           </button>
@@ -491,6 +507,7 @@ function App() {
               </div>
               <div
                 className="quest-path panel"
+                id="world-quests"
                 style={
                   { "--world": worlds[world].color } as React.CSSProperties
                 }

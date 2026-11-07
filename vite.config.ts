@@ -12,8 +12,8 @@ export default defineConfig({
         name: "Spelling Quest",
         short_name: "Spelling Quest",
         description: "Your English spelling adventure",
-        theme_color: "#102c29",
-        background_color: "#0e2225",
+        theme_color: "#181126",
+        background_color: "#100e22",
         display: "standalone",
         icons: [
           {
@@ -27,7 +27,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ["**/*.{js,css,html,svg,png,webmanifest}"],
+        globPatterns: ["**/*.{js,css,html,svg,png,webp,webmanifest}"],
         globIgnores: ["**/vosk-*.js"],
         runtimeCaching: [
           {
