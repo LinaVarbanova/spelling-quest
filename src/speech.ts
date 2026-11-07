@@ -204,7 +204,7 @@ export class BrowserSpellingRecognizer implements SpellingRecognizer {
     r.lang = locale;
     r.continuous = false;
     r.interimResults = false;
-    if (local) r.processLocally = true;
+    if (local || "processLocally" in r) r.processLocally = local;
     r.onresult = (e) => {
       let text = "";
       let confidence = 1;

@@ -49,33 +49,19 @@ The initial order is the source order, **not an official difficulty ranking**. D
 
 **Listen & Type:** select an English voice, replay pronunciation and type the spelling. The answer is not rendered during an active round. Optional translation and original sentence hints exist only in early non-boss quests. Sentence audio necessarily contains the word. After submission the official word, translation and sentence appear.
 
-**Listen & Spell Aloud:** select an engine, replay the word, start the microphone and say separate letter names with pauses. Stop and inspect the letter tiles. Correct misrecognized letters and check the confirmation box before casting the spell. Recognition never submits or marks an answer wrong automatically. An unknown whole-word transcript is marked uncertain, not treated as its correct spelling. Low confidence, B/P confusion, or missing letters must be resolved by the player. Corrections are free and remain marked as spoken provenance.
+**Listen & Spell Aloud:** replay the word, start the microphone and say separate letter names with pauses. The app always uses the **browser speech service**; there is no engine selector or in-app consent checkbox. Your browser still controls its own microphone permission prompt. The service may process audio online through the browser provider, and availability depends on the browser and network. Spelling Quest does not store recordings.
 
-Engines:
+Stop and inspect the letter tiles. Correct any misrecognized letters, then press **Confirm letters & cast spell**. This single action confirms and scores the spelling; there is no separate confirmation checkbox. Recognition never submits or marks an answer wrong automatically. Low confidence and unknown tokens are flagged for review. Corrections are free and remain marked as spoken provenance. Unsupported browsers show a visible explanation; typed entry is an explicit mode choice.
 
-1. **Browser on-device:** capability-detected `SpeechRecognition.processLocally`. Requires a browser with this experimental feature and a locally installed matching English language pack. Missing packs produce a visible error. It never silently falls back online.
-2. **Browser service:** standard / prefixed Web Speech recognition in supporting browsers. Explicit per-visit consent is required because the browser vendor may process audio online. No service key or paid API is needed. Availability, privacy policy and connectivity are controlled by the browser vendor. Unsupported browsers get a visible explanation; the game does not disguise typed entry as microphone recognition.
-3. **Optional local Vosk:** Apache-2.0 WASM engine in a worker, using `getUserMedia` audio entirely locally. The ~5.8 MB engine is lazy-loaded only when a model is selected; it is cached after that. **No large acoustic model is bundled or automatically downloaded.** Load a compatible English model archive from your disk in Settings, then select Vosk in spoken mode. Model initialization/permission errors are shown without scoring. This adapter is experimental pending hardware QA, especially Android memory/latency and isolated-letter accuracy.
-
-### Preparing the optional Vosk model
-
-Acquire a small English model from [Vosk’s official model catalog](https://alphacephei.com/vosk/models), for example `vosk-model-small-en-us-0.15` (catalog lists Apache-2.0, approximately 40 MB compressed). Verify its license when downloading. Download/extract it yourself; the app makes no request to the catalog. Vosk-browser expects a gzipped tar with a top-level folder called `model`, not the original ZIP:
-
-```sh
-unzip vosk-model-small-en-us-0.15.zip
-mv vosk-model-small-en-us-0.15 model
-tar -czf model.tar.gz model
-```
-
-Choose `model.tar.gz` in Settings. The file is processed locally; no recording or model file is uploaded. Archive limit: 150 MB. Models can consume substantially more RAM after decompression. The engine uses a ScriptProcessor bridge for broad compatibility (deprecated browser API; replace with AudioWorklet after device profiling). Vosk may cache extracted model files internally in its own browser filesystem; the selected model must be loaded again each visit. Retain your model archive for offline reopening. For first-time offline use, load the engine while online once; subsequent use can reopen the cached engine and select the local archive. Performance and actual acoustic recognition have **not** been validated on target hardware. Do not interpret automated mocked-transcript tests as acoustic accuracy certification.
+The `SpellingRecognizer` interface remains modular. An experimental local Vosk adapter remains in `src/local-recognizer.ts` for possible future integration, but is not exposed, loaded or downloaded by the current app. There is no automatic local-engine switch. Microphone recording starts only when the player presses **Start microphone**; choosing the browser service does not keep the microphone continuously recording.
 
 ## Persistence and backups
 
-IndexedDB through `idb` stores a versioned progress object. Export/import is in Adventurer. Import validates the schema, vocabulary IDs, counters and attempt history and replaces current state. Export first to preserve the old device state. Devices do not sync. Browser data clearing/private mode/storage eviction can remove progress. Failed persistence is reported visibly and export remains available. Preferences and microphone online consent are visit-local. No audio recordings are stored by the app.
+IndexedDB through `idb` stores a versioned progress object. Export/import is in Adventurer. Import validates the schema, vocabulary IDs, counters and attempt history and replaces current state. Export first to preserve the old device state. Devices do not sync. Browser data clearing/private mode/storage eviction can remove progress. Failed persistence is reported visibly and export remains available. Speech and comfort preferences are visit-local. No audio recordings are stored by the app.
 
 ## Offline and installation
 
-Vite PWA/Workbox precaches the app shell, official curriculum (bundled in JS), original artwork, icons and manifest after the first online load. A cached app can refresh offline. The optional Vosk engine is cached only after use; models are not app-precache assets. Updates show an in-app prompt so a child can finish the current round before reloading. The app does not force-update during a quest. GitHub Pages may require two visits for initial service-worker control; wait for the downloaded/offline-ready notification.
+Vite PWA/Workbox precaches the app shell, official curriculum (bundled in JS), original artwork, icons and manifest after the first online load. A cached app can refresh offline. Browser speech recognition may require internet; it is not provided by the offline app cache. Updates show an in-app prompt so a child can finish the current round before reloading. The app does not force-update during a quest. GitHub Pages may require two visits for initial service-worker control; wait for the downloaded/offline-ready notification.
 
 Install via Android Chrome’s Install app / Add to home screen or a desktop browser’s install menu. **Offline English TTS requires an installed local system voice.** A voice labeled local is a browser hint, not a guarantee on every OS. Browser online recognition is not offline. HTTPS (or localhost) is required for microphone permission. Opening from a tablet over plain LAN HTTP will not enable the microphone; use HTTPS hosting or a local trusted HTTPS setup.
 
@@ -103,7 +89,7 @@ No client routing paths are required; screens use local React state, avoiding Pa
 
 ## Verification and device limits
 
-Automated checks cover vocabulary coverage, scoring, mastery intervals, quest unlocks, backups, IndexedDB, letter parsing, quest completion, persistence, offline refresh, all-word access, tablet viewport fit and spoken confirmation with a **mocked browser recognition service**. Browser tests run against the production bundle. Hardware microphone/TTS testing cannot be simulated by those checks.
+Automated checks cover vocabulary coverage, scoring, mastery intervals, quest unlocks, backups, IndexedDB, letter parsing, quest completion, persistence, offline refresh, all-word access, tablet viewport fit and spoken confirmation and a checkbox-free browser-service default with a **mocked browser recognition service**. Browser tests run against the production bundle. Hardware microphone/TTS testing cannot be simulated by those checks.
 
 Before release to a child, verify on actual devices:
 
@@ -117,6 +103,6 @@ Web Speech recognition is not universally supported (notably Firefox) and can va
 
 ## Assets and licenses
 
-The fairy-world environment is original ImageGen artwork created for this game, compressed into a single 663 KiB WebP served locally and cached offline. Six SVG viewports reuse that asset without downloading it six times. Source notes are in `public/worlds/ARTWORK.md`. Crest, treasure and app icon SVG artwork is original code in this repository; no third-party franchise art, external fonts, image CDNs or recorded sound files. Fonts are installed system fonts. Optional success tone is synthesized with Web Audio and defaults off. Decorative motion respects OS reduced-motion and can be disabled in Settings. The precached app and illustrated artwork total approximately 1 MiB; optional Vosk is separate.
+The fairy-world environment is original ImageGen artwork created for this game, compressed into a single 663 KiB WebP served locally and cached offline. Six SVG viewports reuse that asset without downloading it six times. Source notes are in `public/worlds/ARTWORK.md`. Crest, treasure and app icon SVG artwork is original code in this repository; no third-party franchise art, external fonts, image CDNs or recorded sound files. Fonts are installed system fonts. Optional success tone is synthesized with Web Audio and defaults off. Decorative motion respects OS reduced-motion and can be disabled in Settings. The precached app and illustrated artwork total approximately 1 MiB. The unused optional Vosk adapter is not bundled.
 
 Third-party runtime packages: React (MIT), idb (ISC), vosk-browser/Vosk (Apache-2.0; see their distributed licenses). Acoustic models have separate licenses: consult the selected model’s official catalog entry. The competition curriculum is supplied by the project; its source URL is preserved in the JSON. The app does not claim ownership of that official source.

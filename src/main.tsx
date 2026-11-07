@@ -23,11 +23,9 @@ import {
   type SpeechSettings,
   type Candidate,
 } from "./speech";
-import { LocalVoskRecognizer } from "./local-recognizer";
 import { Crest, TreasureChest, WorldArt } from "./Art";
 import "./style.css";
 const recognizer = new BrowserSpellingRecognizer();
-const vosk = new LocalVoskRecognizer();
 const today = () => new Date().toLocaleDateString("en-CA");
 function App() {
   const [progress, setProgress] = useState<Progress>(freshProgress),
@@ -54,20 +52,15 @@ function App() {
     [hint, setHint] = useState(false),
     [translation, setTranslation] = useState(false),
     [mode, setMode] = useState<Mode>("typed"),
-    [engine, setEngine] = useState<"local" | "browser" | "vosk">("local"),
-    [onlineConsent, setOnlineConsent] = useState(false),
     [listening, setListening] = useState(false),
     [candidate, setCandidate] = useState<Candidate | null>(null),
     [micError, setMicError] = useState(""),
-    [confirmed, setConfirmed] = useState(false),
     [search, setSearch] = useState(""),
     [filter, setFilter] = useState("all"),
     [reduced, setReduced] = useState(false),
     [sounds, setSounds] = useState(false),
     [countdown, setCountdown] = useState(90),
     [timed, setTimed] = useState(false);
-  const [modelState, setModelState] = useState("No local model loaded"),
-    [modelLoading, setModelLoading] = useState(false);
   const busy = useRef(false);
   const win = worlds[active.world];
   const word = active.words[round];
@@ -92,7 +85,6 @@ function App() {
       return () => {
         speechSynthesis.removeEventListener("voiceschanged", load);
         recognizer.stop();
-        vosk.stop();
         speaker.stop();
       };
     }
@@ -127,7 +119,6 @@ function App() {
       !result
     ) {
       recognizer.stop();
-      vosk.stop();
       speaker.stop();
       setListening(false);
       setPage("reward");
@@ -150,7 +141,6 @@ function App() {
   }
   function stop() {
     recognizer.stop();
-    vosk.stop();
     speaker.stop();
     setListening(false);
   }
@@ -165,7 +155,6 @@ function App() {
     setTranslation(false);
     setCandidate(null);
     setMicError("");
-    setConfirmed(false);
     setCountdown(90);
   }
   function start(q: Quest) {
@@ -179,7 +168,6 @@ function App() {
     setPage("quest");
   }
   function speak(text: string, slow = false) {
-    vosk.stop();
     recognizer.stop();
     setListening(false);
     speaker.speak(
@@ -215,7 +203,7 @@ function App() {
       !answer.trim() ||
       result ||
       busy.current ||
-      (mode === "spoken" && (!candidate || !confirmed || listening))
+      (mode === "spoken" && (!candidate || listening))
     )
       return;
     busy.current = true;
@@ -253,23 +241,15 @@ function App() {
     speaker.stop();
     setCandidate(null);
     setAnswer("");
-    setConfirmed(false);
     setMicError("");
-    if (engine === "browser" && !onlineConsent) {
-      setMicError(
-        "Enable browser online recognition below before using this engine.",
-      );
-      return;
-    }
     setListening(true);
-    (engine === "vosk" ? vosk : recognizer).start(
-      engine !== "browser",
+    recognizer.start(
+      false,
       settings.locale,
       (c) => {
         setCandidate(c);
         setAnswer(c.letters.join(""));
-        setConfirmed(false);
-        if (engine !== "vosk") setListening(false);
+        setListening(false);
       },
       (m) => {
         setMicError(m);
@@ -633,7 +613,6 @@ function App() {
                     setMode("typed");
                     setAnswer("");
                     setCandidate(null);
-                    setConfirmed(false);
                   }}
                 >
                   Listen & Type
@@ -646,7 +625,6 @@ function App() {
                     setMode("spoken");
                     setAnswer("");
                     setCandidate(null);
-                    setConfirmed(false);
                   }}
                 >
                   Listen & Spell Aloud
@@ -713,68 +691,21 @@ function App() {
                     Say individual letters with a small pause: “A … B … C”. “B
                     as in bravo” is also supported. Always check the result.
                   </p>
-                  <label>
-                    Recognition engine
-                    <select
-                      value={engine}
-                      disabled={listening}
-                      onChange={(e) => {
-                        stop();
-                        setEngine(
-                          e.target.value as "local" | "browser" | "vosk",
-                        );
-                      }}
-                    >
-                      <option value="local">
-                        On-device · requires browser language model
-                      </option>
-                      <option value="browser">
-                        Browser service · may send audio online
-                      </option>
-                      <option value="vosk">
-                        Vosk · local open-source model
-                      </option>
-                    </select>
-                  </label>
-                  {engine === "browser" && (
-                    <label className="consent">
-                      <input
-                        type="checkbox"
-                        checked={onlineConsent}
-                        disabled={listening}
-                        onChange={(e) => setOnlineConsent(e.target.checked)}
-                      />{" "}
-                      I allow this browser’s speech service to process
-                      microphone audio, potentially online. Spelling Quest does
-                      not store recordings.
-                    </label>
-                  )}
-                  {(engine === "vosk"
-                    ? !vosk.capability().supported
-                    : !cap.supported || (engine === "local" && !cap.local)) && (
-                    <p role="status">
-                      {(engine === "vosk"
-                        ? vosk.capability().reason
-                        : cap.reason) ||
-                        "This browser does not expose on-device recognition. Choose the browser service explicitly, or switch to Listen & Type. No audio is sent automatically."}
-                    </p>
-                  )}
+                  <p className="small">
+                    Browser speech service · microphone audio may be processed
+                    online by your browser provider. Spelling Quest does not
+                    store recordings.
+                  </p>
+                  {!cap.supported && <p role="status">{cap.reason}</p>}
                   <div className="audio-controls">
                     <button
                       className={"mic-button " + (listening ? "recording" : "")}
-                      disabled={
-                        (engine === "vosk"
-                          ? !vosk.capability().supported
-                          : !cap.supported ||
-                            (engine === "local" && !cap.local)) ||
-                        (engine === "browser" && !onlineConsent) ||
-                        saving
-                      }
+                      disabled={!cap.supported || saving}
                       onClick={
                         listening
                           ? () => {
-                              (engine === "vosk" ? vosk : recognizer).finish();
-                              if (engine !== "vosk") setListening(false);
+                              recognizer.finish();
+                              setListening(false);
                             }
                           : mic
                       }
@@ -786,7 +717,6 @@ function App() {
                         stop();
                         setCandidate(null);
                         setAnswer("");
-                        setConfirmed(false);
                       }}
                     >
                       Cancel recording
@@ -833,7 +763,6 @@ function App() {
                   value={answer}
                   onChange={(e) => {
                     setAnswer(e.target.value);
-                    setConfirmed(false);
                   }}
                   disabled={!!result || (mode === "spoken" && !candidate)}
                   autoComplete="off"
@@ -846,16 +775,6 @@ function App() {
                       : "Type what you hear…"
                   }
                 />
-                {mode === "spoken" && candidate && !result && (
-                  <label className="consent">
-                    <input
-                      type="checkbox"
-                      checked={confirmed}
-                      onChange={(e) => setConfirmed(e.target.checked)}
-                    />{" "}
-                    These letters match what I intended to spell.
-                  </label>
-                )}
                 {!result && (
                   <button
                     className="primary"
@@ -863,10 +782,12 @@ function App() {
                       !answer.trim() ||
                       saving ||
                       listening ||
-                      (mode === "spoken" && (!candidate || !confirmed))
+                      (mode === "spoken" && !candidate)
                     }
                   >
-                    Cast spell →
+                    {mode === "spoken"
+                      ? "Confirm letters & cast spell →"
+                      : "Cast spell →"}
                   </button>
                 )}
               </form>
@@ -1159,54 +1080,6 @@ function App() {
           <section className="panel settings">
             <p className="eyebrow">MAKE YOURSELF AT HOME</p>
             <h1>Audio & comfort</h1>
-            <h2>Optional offline speech model</h2>
-            <p>
-              Vosk is a free open-source speech engine that runs locally. Choose
-              a compatible English .tar.gz model archive from your device.
-              Models can use hundreds of MB of memory; small models are
-              recommended. No automatic downloads or audio uploads. The model
-              must be selected again after reopening.
-            </p>
-            <label className="file-button">
-              {modelLoading ? "Loading local model…" : "Load local Vosk model"}
-              <input
-                type="file"
-                accept=".gz,.tgz"
-                disabled={modelLoading}
-                onChange={async (e) => {
-                  const f = e.target.files?.[0];
-                  if (!f) return;
-                  if (f.size > 150 * 1024 * 1024) {
-                    setModelState("Choose a small model under 150 MB.");
-                    return;
-                  }
-                  setModelLoading(true);
-                  setModelState(
-                    "Loading model locally. This can take up to two minutes.",
-                  );
-                  try {
-                    await vosk.load(f);
-                    setModelState(
-                      "Local Vosk model ready. Choose Vosk in spoken mode.",
-                    );
-                  } catch (err) {
-                    setModelState(
-                      err instanceof Error
-                        ? err.message
-                        : "Model failed to load.",
-                    );
-                  } finally {
-                    setModelLoading(false);
-                  }
-                }}
-              />
-            </label>
-            <p role="status">{modelState}</p>
-            <p className="small">
-              See README for compatible model preparation and licensing. This
-              optional engine is not device-certified; always confirm its
-              letters.
-            </p>
             <label>
               English accent
               <select
@@ -1261,11 +1134,10 @@ function App() {
               in your device’s speech settings if needed.
             </p>
             <p>
-              Microphone access requires HTTPS or localhost. On-device
-              recognition depends on browser support and an installed language
-              pack. Browser service recognition may send audio to the browser
-              vendor; it only runs after explicit consent. No automatic cloud
-              fallback.
+              Microphone access requires HTTPS or localhost. Spoken spelling
+              always uses the browser speech service, which may process audio
+              online and require internet. Start the microphone when you are
+              ready; your browser handles microphone permission.
             </p>
             <label className="consent">
               <input

@@ -58,7 +58,9 @@ test("all words searchable; tablet layout fits; unsupported speech is explicit",
   await expect(
     page.getByRole("button", { name: "Start microphone" }),
   ).toBeVisible();
-  await expect(page.getByRole("button", { name: "Cast spell" })).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "Confirm letters & cast spell" }),
+  ).toBeDisabled();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
@@ -74,6 +76,7 @@ test("spoken candidate must be confirmed; recognition errors do not score", asyn
 }) => {
   await page.addInitScript(() => {
     class FakeRecognition {
+      processLocally = true;
       lang = "";
       continuous = false;
       interimResults = false;
@@ -81,6 +84,9 @@ test("spoken candidate must be confirmed; recognition errors do not score", asyn
       onerror: ((e: unknown) => void) | null = null;
       onend: (() => void) | null = null;
       start() {
+        document.documentElement.dataset.recognitionLocal = String(
+          this.processLocally,
+        );
         setTimeout(() => {
           this.onresult?.({
             results: [
@@ -106,13 +112,17 @@ test("spoken candidate must be confirmed; recognition errors do not score", asyn
   await page
     .getByRole("button", { name: "Listen & Spell Aloud", exact: true })
     .click();
-  await page.getByLabel("Recognition engine").selectOption("browser");
-  await page.getByRole("checkbox", { name: /I allow/ }).check();
   await page.getByRole("button", { name: "Start microphone" }).click();
   await expect(page.getByLabel("Detected letters")).toContainText("A");
-  await expect(page.getByRole("button", { name: "Cast spell" })).toBeDisabled();
-  await page.getByRole("checkbox", { name: /These letters/ }).check();
-  await page.getByRole("button", { name: "Cast spell" }).click();
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-recognition-local",
+    "false",
+  );
+  await expect(page.locator(".xp")).toContainText("0 XP");
+  await expect(page.getByRole("checkbox")).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "Confirm letters & cast spell" })
+    .click();
   await expect(page.locator(".feedback")).toContainText("+20 XP");
 });
 test("mistakes consume lives; microphone denial never scores", async ({
@@ -138,8 +148,6 @@ test("mistakes consume lives; microphone denial never scores", async ({
   await page
     .getByRole("button", { name: "Listen & Spell Aloud", exact: true })
     .click();
-  await page.getByLabel("Recognition engine").selectOption("browser");
-  await page.getByRole("checkbox", { name: /I allow/ }).check();
   await page.getByRole("button", { name: "Start microphone" }).click();
   await expect(page.getByRole("alert")).toContainText("permission was denied");
   await expect(page.locator(".xp")).toContainText("0 XP");
@@ -152,27 +160,22 @@ test("mistakes consume lives; microphone denial never scores", async ({
   await page.getByRole("button", { name: "Next word" }).click();
   await expect(page.locator(".round-body")).toContainText("WORD 2 OF 10");
 });
-test("optional local engine loads from the production bundle and reports a bad model", async ({
+test("spoken spelling defaults to browser service without consent checkboxes", async ({
   page,
 }) => {
-  test.setTimeout(30000);
   await page.goto("/");
-  await page.getByRole("button", { name: "Audio settings" }).click();
-  const { gzipSync } = await import("node:zlib");
-  await page.locator("input[type=file]").setInputFiles({
-    name: "invalid.tar.gz",
-    mimeType: "application/gzip",
-    buffer: gzipSync(Buffer.from("not a model")),
-  });
+  await page.getByRole("button", { name: "Continue your journey" }).click();
+  await page
+    .getByRole("button", { name: "Listen & Spell Aloud", exact: true })
+    .click();
   await expect(
-    page
-      .getByRole("status")
-      .filter({ hasText: /Model failed|Invalid Vosk|Model loading timed/ }),
-  ).toBeVisible({ timeout: 20000 });
-  await page.screenshot({
-    path: "test-results/local-engine.png",
-    fullPage: true,
-  });
+    page.getByText("Browser speech service ·", { exact: false }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Recognition engine")).toHaveCount(0);
+  await expect(page.getByRole("checkbox")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Confirm letters & cast spell" }),
+  ).toBeDisabled();
 });
 test("map fits landscape and phone screens", async ({ page }) => {
   for (const [width, height] of [

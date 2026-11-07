@@ -28,17 +28,6 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,svg,png,webp,webmanifest}"],
-        globIgnores: ["**/vosk-*.js"],
-        runtimeCaching: [
-          {
-            urlPattern: /\/assets\/vosk-.*\.js$/,
-            handler: "CacheFirst",
-            options: {
-              cacheName: "optional-vosk-engine",
-              expiration: { maxEntries: 2 },
-            },
-          },
-        ],
         cleanupOutdatedCaches: true,
       },
     }),
