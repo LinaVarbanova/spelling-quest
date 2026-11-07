@@ -1,5 +1,9 @@
 # Spelling Quest
 
+**[Play Spelling Quest in your browser](https://linavarbanova.github.io/spelling-quest/)**
+
+First-time hosting setup: open [Settings → Pages](https://github.com/LinaVarbanova/spelling-quest/settings/pages), choose **GitHub Actions** as the source, then run **Test and deploy GitHub Pages** from the [Actions tab](https://github.com/LinaVarbanova/spelling-quest/actions/workflows/deploy.yml). The play link becomes available after a successful deployment.
+
 A free, static React + TypeScript + Vite fantasy spelling adventure for the **2027 Bulgarian National English Spelling Bee JUNIOR school level**. No accounts, tracking, paid APIs or application server.
 
 ## Run
@@ -77,7 +81,7 @@ Install via Android Chrome’s Install app / Add to home screen or a desktop bro
 
 ## GitHub Pages
 
-The included `.github/workflows/deploy.yml` runs lint, unit tests, Chromium integration tests, builds using `/<repository-name>/`, and deploys `dist/` using GitHub Actions. In repository Settings → Pages, choose **GitHub Actions**. Push to `main` or run the workflow manually. Deployment has been configured, **not published from this session**.
+The included `.github/workflows/deploy.yml` runs lint, unit tests, Chromium integration tests, builds using `/<repository-name>/`, and deploys `dist/` using GitHub Actions. In repository Settings → Pages, choose **GitHub Actions**. Push to `main` or run the workflow manually. Source code and the deployment workflow are published. Hosting becomes live after Pages is enabled and the deployment workflow succeeds.
 
 For a custom root domain or a `username.github.io` repository set `VITE_BASE_PATH=/` in the build step. For another project path:
 
