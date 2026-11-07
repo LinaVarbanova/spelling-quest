@@ -12,8 +12,8 @@ export default defineConfig({
         name: "Spelling Quest",
         short_name: "Spelling Quest",
         description: "Your English spelling adventure",
-        theme_color: "#181126",
-        background_color: "#100e22",
+        theme_color: "#171a31",
+        background_color: "#12152b",
         display: "standalone",
         icons: [
           {
@@ -28,6 +28,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,svg,png,webp,webmanifest}"],
+        globIgnores: ["**/worlds/fairy-realms.webp"],
         cleanupOutdatedCaches: true,
       },
     }),

@@ -1,0 +1,1054 @@
+/* Dimensional playground theme. Decorative motion is optional; gameplay controls stay native. */
+:root {
+  --gold: #f7d5a0;
+  --mint: #a5f2d5;
+  --muted: #b4b5d1;
+  --line: #b8b4e329;
+  background: #12152b;
+  font-family: "Trebuchet MS", Arial, sans-serif;
+}
+body {
+  background:
+    radial-gradient(ellipse at 80% 8%, #59447448, transparent 40%),
+    radial-gradient(ellipse at 10% 35%, #31565d35, transparent 45%), #12152b;
+}
+header {
+  background: #171a31d9;
+  border-color: #c1bbec1c;
+  padding-top: 20px;
+  padding-bottom: 20px;
+}
+.brand {
+  font-family: inherit;
+  font-weight: 800;
+  letter-spacing: -0.7px;
+  color: #f5f1e9;
+}
+.brand svg {
+  color: #bdebd4;
+  filter: drop-shadow(0 4px 0 #385c68);
+}
+.brand small {
+  font-weight: normal;
+  letter-spacing: 2px;
+  color: #bcb9d3;
+}
+nav button {
+  border-radius: 13px;
+  font-weight: bold;
+  color: #bcbcd4;
+}
+nav button.selected {
+  background: #31334d;
+  box-shadow:
+    inset 0 1px 0 #ffffff17,
+    0 3px 0 #0e1022;
+  color: #d3f9e7;
+}
+.topline {
+  color: #9ba1bd;
+  letter-spacing: 1.8px;
+}
+.xp {
+  background: #2e304b;
+  border: 1px solid #a9a2d334;
+  border-radius: 15px;
+  box-shadow: 0 4px 0 #0a1020;
+  padding: 10px 16px;
+  color: #eedaad;
+}
+.xp span {
+  color: #aeb7c9;
+}
+h1,
+h2,
+h3 {
+  font-family: "Trebuchet MS", Arial, sans-serif;
+  letter-spacing: -0.7px;
+}
+h1 {
+  font-weight: 800;
+}
+h2 {
+  font-weight: 700;
+}
+h3 {
+  font-weight: 700;
+}
+.eyebrow {
+  color: #bcb0ed;
+  letter-spacing: 2px;
+}
+.hero {
+  display: grid;
+  grid-template-columns: 0.88fr 1.12fr;
+  min-height: 570px;
+  isolation: isolate;
+  background: linear-gradient(135deg, #24283f, #25263e 40%, #302743);
+  border: 1px solid #a3a7d43b;
+  border-radius: 28px;
+  box-shadow:
+    inset 0 1px 0 #ffffff13,
+    0 12px 0 #0c1023,
+    0 28px 60px #070b1c65;
+  overflow: hidden;
+}
+.hero-copy {
+  background: none;
+  padding: 66px 0 45px 36px;
+  position: relative;
+  z-index: 1;
+  max-width: none;
+}
+.hero .eyebrow {
+  color: #afddce;
+  letter-spacing: 2px;
+  font-size: 10px !important;
+}
+.hero h1 {
+  font-family: "Trebuchet MS", Arial, sans-serif;
+  font-size: clamp(39px, 4.05vw, 56px);
+  line-height: 1.1;
+  font-weight: 800;
+  letter-spacing: -2px;
+  color: #faf6ee;
+  text-shadow: none;
+  margin-bottom: 25px;
+}
+.hero-copy > p:not(.eyebrow) {
+  font-size: 15px;
+  line-height: 1.85;
+  color: #c1c7d8;
+  text-shadow: none;
+}
+.hero-meta {
+  gap: 18px;
+  color: #a8b9c6;
+  font-size: 10px;
+  margin-top: 24px;
+}
+.hero-playground {
+  position: relative;
+  min-width: 0;
+  min-height: 570px;
+}
+.hero-playground:before {
+  content: "";
+  position: absolute;
+  width: 75%;
+  height: 55%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, #b5c7ff12, transparent 65%);
+  left: 12%;
+  top: 15%;
+  pointer-events: none;
+}
+.island-playground {
+  position: relative;
+  min-height: 570px;
+  display: flex;
+  flex-direction: column;
+  padding: 22px 22px 18px;
+  isolation: isolate;
+}
+.playground-caption {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 8px;
+  font-weight: bold;
+  letter-spacing: 1.6px;
+  color: #bcbdd2;
+}
+.live-dot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #b3e7d4;
+  white-space: nowrap;
+}
+.live-dot:before {
+  content: "";
+  display: block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #b4f9dc;
+  box-shadow: 0 0 10px #b4f9dc70;
+}
+.playground-canvas {
+  height: 395px;
+  width: 100%;
+  position: relative;
+  min-width: 0;
+}
+.playground-canvas canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: grab;
+  touch-action: pan-y;
+}
+.playground-canvas canvas:active {
+  cursor: grabbing;
+}
+.playground-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  font-size: 10px;
+  color: #a4acc3;
+  margin-top: -18px;
+  position: relative;
+  z-index: 1;
+}
+.playground-toolbar > div {
+  display: flex;
+  gap: 6px;
+}
+.playground-toolbar button {
+  padding: 3px 12px;
+  min-height: 36px;
+  min-width: 38px;
+  background: #35364f;
+  color: #d3cee9;
+  border: 1px solid #a6a9cc28;
+  border-radius: 12px;
+  box-shadow: 0 3px 0 #14182c;
+}
+.realm-picker {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+.realm-picker button {
+  min-width: 40px;
+  min-height: 40px;
+  padding: 8px;
+  border-radius: 12px;
+  border: 1px solid #a4a3d136;
+  background: #35344e;
+  color: #bebad4;
+  font-size: 11px;
+  font-weight: bold;
+  box-shadow: 0 4px 0 #16172c;
+}
+.realm-picker button.active {
+  color: #1b3740;
+  background: linear-gradient(160deg, #c7ffe5, #8fd7c4);
+  border-color: #ddffef;
+  box-shadow:
+    0 4px 0 #41777b,
+    0 0 18px #aef4d014;
+  transform: translateY(-2px);
+}
+.selected-realm {
+  text-align: center;
+  font-size: 13px;
+  color: #eef0e6;
+  font-weight: bold;
+  margin: 14px 0 0;
+}
+.selected-realm > span {
+  font-size: 8px;
+  font-weight: normal;
+  letter-spacing: 1.4px;
+  color: #99a4bb;
+  margin-right: 7px;
+}
+.playground-fallback,
+.playground-loading {
+  position: absolute;
+  inset: 70px 0 130px;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+.playground-fallback .world-artwork,
+.playground-loading .world-artwork {
+  height: 100%;
+  width: 100%;
+  min-height: 220px;
+}
+.playground-fallback > p,
+.playground-loading > p {
+  font-size: 10px;
+  position: absolute;
+  bottom: -15px;
+  color: #c4c4d9;
+}
+.playground-loading {
+  inset: 50px 0 20px;
+}
+button,
+.file-button {
+  border-radius: 12px;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease;
+  box-shadow:
+    inset 0 1px 0 #ffffff12,
+    0 3px 0 #0d1226;
+  background: #343650;
+  border-color: #9ba0c645;
+  color: #e4e4f0;
+}
+button:hover {
+  background: #424562;
+}
+button:not(:disabled):active,
+.file-button:active {
+  transform: translateY(3px);
+  box-shadow:
+    inset 0 1px 2px #0002,
+    0 0 0 #111;
+}
+.primary {
+  background: linear-gradient(155deg, #caffdf, #91dbca);
+  color: #1a3a3d;
+  border: 1px solid #d7ffe9;
+  border-radius: 16px;
+  box-shadow:
+    inset 0 2px 0 #ffffff80,
+    0 6px 0 #3e807b,
+    0 12px 24px #081b2c40;
+  padding: 17px 24px;
+  letter-spacing: 0.05px;
+}
+.primary:hover {
+  background: linear-gradient(155deg, #dcffed, #acf0d8);
+  transform: translateY(-2px);
+  box-shadow:
+    inset 0 2px 0 #ffffff80,
+    0 8px 0 #3e807b,
+    0 16px 28px #081b2c40;
+}
+.primary:not(:disabled):active {
+  transform: translateY(5px);
+  box-shadow:
+    inset 0 1px 1px #ffffff80,
+    0 1px 0 #3e807b;
+}
+.primary:disabled {
+  opacity: 0.45;
+}
+.daily {
+  margin-top: 35px;
+  background: linear-gradient(110deg, #353047, #2c2d45);
+  border: 1px solid #bdacd343;
+  border-radius: 22px;
+  box-shadow: 0 6px 0 #101426;
+  padding: 22px 28px;
+}
+.daily h3 {
+  color: #f0e7d2;
+  font-size: 23px;
+}
+.daily .eyebrow {
+  color: #cdb9e4;
+}
+.daily p {
+  color: #b7b3ca;
+}
+.daily button {
+  background: #493d59;
+  color: #f5dcb7;
+  border-color: #b7a1b95c;
+  box-shadow: 0 4px 0 #241e36;
+}
+.treasure-chest {
+  filter: drop-shadow(0 7px 0 #12182d80);
+}
+.section-title h2 {
+  color: #f1edf5;
+  font-size: 30px;
+}
+.section-title .eyebrow {
+  color: #a4afcf;
+}
+.pill {
+  background: #282c44;
+  color: #b7c0d6;
+  border-color: #969fc62b;
+  box-shadow: 0 3px 0 #0c1224;
+  font-size: 10px;
+}
+.world-grid {
+  gap: 24px;
+  perspective: 1200px;
+}
+.world {
+  border-radius: 23px;
+  background: linear-gradient(150deg, #2c3049, #272a41);
+  border: 1px solid #a6b1d82f;
+  box-shadow:
+    inset 0 1px 0 #ffffff10,
+    0 8px 0 #0e1429,
+    0 18px 28px #090e2033;
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease,
+    border-color 0.25s ease;
+  overflow: hidden;
+}
+.world.active {
+  border-color: #a3e2c8;
+  box-shadow:
+    inset 0 1px 0 #ffffff20,
+    0 8px 0 #1f4a4c,
+    0 18px 30px #0a152633;
+}
+.world-art {
+  height: 235px;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  isolation: isolate;
+}
+.world-art:after {
+  background: linear-gradient(0deg, #2b2e46, transparent 25%);
+}
+.world-art:before {
+  content: "";
+  position: absolute;
+  inset: 15% 10% 5%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, #b5a5f018, transparent 70%);
+  pointer-events: none;
+}
+.world-art b {
+  background: #393e5b;
+  color: #d7e4e4;
+  border: 1px solid #acb6d049;
+  border-radius: 11px;
+  width: 32px;
+  height: 32px;
+  left: 17px;
+  top: 17px;
+  box-shadow: 0 3px 0 #161e35;
+  backdrop-filter: none;
+}
+.restored {
+  right: 17px;
+  bottom: 15px;
+  border-radius: 8px;
+  background: #292d45;
+  color: #b6cabf;
+  border-color: #9eadd035;
+  backdrop-filter: none;
+  font-size: 7px;
+  letter-spacing: 1px;
+}
+.world-content {
+  padding: 10px 23px 22px;
+}
+.world-content h3 {
+  font-size: 24px;
+  color: #f0e7ee;
+}
+.world-content .chapter {
+  color: #9daac5;
+  font-size: 8px;
+  letter-spacing: 1.2px;
+}
+.world-content p {
+  font-size: 12px;
+  color: #b0bad0;
+  min-height: 42px;
+}
+.world-bottom {
+  border-color: #a9afd522;
+  color: #a2b3c9;
+}
+.world-bottom button {
+  background: #393d57;
+  border-radius: 12px;
+  color: #c8ecdf;
+  border-color: #a0bad02e;
+  box-shadow: 0 3px 0 #1b2239;
+}
+.world-artwork {
+  background: none;
+  background-size: auto;
+  display: block;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+.realm-render {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  object-position: center;
+  transform: scale(1.12);
+  filter: drop-shadow(0 12px 10px #0a0d2238);
+  animation: island-poster-float 6s ease-in-out infinite;
+}
+.world-art:hover .world-artwork {
+  transform: none;
+  filter: none;
+}
+.world-artwork .fairy-sparks {
+  opacity: 0.45;
+}
+.world.restored-world .world-artwork {
+  filter: saturate(1.1);
+}
+.world .realm-render {
+  animation-delay: -2s;
+}
+.world:nth-child(2n) .realm-render {
+  animation-delay: -4s;
+}
+.world-artwork .guardian-aura {
+  width: 65px;
+  height: 80px;
+  right: 12%;
+  top: 18%;
+  opacity: 0.6;
+}
+.world-artwork .guardian-aura svg {
+  color: #e4c9f5;
+}
+.quest-path.panel {
+  border-radius: 23px;
+  background: linear-gradient(120deg, #2d3049, #24293f);
+  border-color: #a8b6d13a;
+  box-shadow: 0 7px 0 #0d1428;
+}
+.quest-path h2 {
+  color: #e0eee6;
+}
+.quest-path p {
+  color: #aebfd1;
+}
+.node button {
+  background: linear-gradient(150deg, #475574, #303a56);
+  border: 2px solid #98b9c2;
+  box-shadow:
+    inset 0 2px 0 #ffffff25,
+    0 7px 0 #16263b,
+    0 12px 20px #070d1c33;
+  color: #e7f8e8;
+}
+.node button:disabled {
+  background: #30354f;
+  border-color: #69728f;
+  color: #8998b1;
+  box-shadow: 0 5px 0 #19233a;
+}
+.node button.done {
+  background: linear-gradient(145deg, #bbf1d1, #76b7a9);
+  border-color: #d0f5de;
+  color: #214f4c;
+  box-shadow: 0 7px 0 #356969;
+}
+.nodes:before {
+  border-color: #a1b9cd4a;
+}
+.node strong {
+  color: #cbdcd5;
+}
+.node span {
+  color: #92a5bc;
+}
+.play {
+  background: #272b43;
+  border: 1px solid #acb5d341;
+  border-radius: 26px;
+  box-shadow:
+    0 10px 0 #10162a,
+    0 24px 60px #080e1c3d;
+}
+.battle-art {
+  height: 290px;
+  background:
+    radial-gradient(ellipse at 70% 30%, #776a9b40, transparent 65%), #2b2e48;
+}
+.boss .battle-art {
+  height: 330px;
+}
+.battle-art > .world-artwork {
+  width: 62%;
+  left: auto;
+  right: -2%;
+  height: 100%;
+  z-index: 0;
+}
+.battle-art:after {
+  z-index: 1;
+  background:
+    linear-gradient(90deg, #292d46 8%, #292d4680 42%, transparent 70%),
+    linear-gradient(0deg, #272b43, transparent 30%);
+}
+.battle-art > div:not(.world-artwork) {
+  z-index: 2;
+  text-shadow: none;
+  padding: 50px 35px;
+  max-width: 60%;
+}
+.battle-art h2 {
+  font-size: 34px;
+  color: #e9f0e9;
+}
+.battle-art p {
+  color: #b7c4d5;
+  font-size: 13px;
+}
+.battle-art .eyebrow {
+  color: #a3d8c5;
+}
+.quest-top {
+  background: #272b43;
+  color: #c5dfd4;
+}
+.round-body h1 {
+  color: #f3efe9;
+  letter-spacing: -1px;
+  font-size: 32px;
+}
+.round-body > p {
+  color: #b7c0d4;
+}
+.round-body {
+  background: linear-gradient(130deg, #2d3049, #262b43);
+}
+.mode-tabs {
+  background: #1c2136;
+  border: 1px solid #929ec13b;
+  border-radius: 16px;
+  padding: 5px;
+  box-shadow: inset 0 3px 5px #0c122633;
+}
+.mode-tabs button {
+  border-radius: 11px;
+  box-shadow: none;
+}
+.mode-tabs button.selected {
+  color: #d6f9e4;
+  background: linear-gradient(130deg, #52677a, #3c5265);
+  box-shadow:
+    inset 0 1px 0 #c8e3e730,
+    0 3px 0 #1c2c40;
+}
+.audio-controls .listen {
+  background: linear-gradient(145deg, #729a8e, #50766d);
+  color: #f4ffec;
+  border-color: #a7caba75;
+  box-shadow: 0 4px 0 #2a494a;
+}
+.audio-controls button {
+  background: #3d425e;
+  color: #d9e4ee;
+  border-color: #91a3c544;
+  box-shadow: 0 4px 0 #222b43;
+}
+#spelling,
+.vault-tools input {
+  border-radius: 15px;
+  background: #1e243a;
+  border: 2px solid #7b8eae73;
+  color: #e5f6e7;
+  box-shadow: inset 0 4px 7px #0a122633;
+}
+#spelling:focus {
+  border-color: #b0e7d2;
+}
+.microphone {
+  background: #20273d;
+  border: 1px solid #8ba8bf45;
+  border-radius: 20px;
+  box-shadow: inset 0 1px 0 #cbe0ec10;
+}
+.letters span {
+  background: linear-gradient(140deg, #617391, #415672);
+  border-color: #a8cbcc78;
+  color: #dcfae7;
+  border-radius: 9px;
+  box-shadow: 0 4px 0 #263b52;
+}
+.mic-button.recording {
+  background: linear-gradient(140deg, #b76e87, #8a516c);
+  color: #ffe5eb;
+  border-color: #eab2c8;
+}
+.feedback {
+  border-radius: 15px;
+  background: #a4df9a16;
+  border-color: #a5dfbb;
+  box-shadow: 0 4px 0 #172b38;
+}
+.feedback strong {
+  color: #c8f4d5;
+}
+.panel {
+  border-radius: 23px;
+  background: #292d45;
+  border-color: #a1accc34;
+  box-shadow: 0 6px 0 #11192c;
+}
+.stats > div,
+.word-card,
+.relics > div {
+  background: #20273c;
+  border: 1px solid #9aaac535;
+  border-radius: 17px;
+  box-shadow: 0 4px 0 #121d31;
+}
+.stats strong {
+  font-family: inherit;
+  font-weight: bold;
+  color: #c2eed8;
+}
+.word-card h3 {
+  color: #d5f3df;
+}
+.word-card .example {
+  color: #9cafc8;
+}
+.reward > .world-artwork {
+  height: 290px;
+}
+.reward h1 {
+  font-weight: 800;
+}
+.notice {
+  border-radius: 16px;
+  background: #42405b;
+  border-color: #cabbb666;
+  box-shadow: 0 4px 0 #252338;
+}
+.notice button {
+  background: #33374f;
+}
+.settings select {
+  background: #20273c;
+  border-color: #8399b363;
+  border-radius: 12px;
+}
+footer {
+  color: #8a9db6;
+  border-color: #a6b6ce24;
+}
+@keyframes island-poster-float {
+  0%,
+  100% {
+    transform: scale(1.12) translateY(0);
+  }
+  50% {
+    transform: scale(1.12) translateY(-6px);
+  }
+}
+@media (hover: hover) and (pointer: fine) {
+  .world:hover {
+    transform: translateY(-7px) rotateX(2deg);
+    box-shadow:
+      inset 0 1px 0 #ffffff1c,
+      0 12px 0 #101b31,
+      0 26px 40px #070e223f;
+    border-color: #b2cddc8a;
+  }
+  .world.active:hover {
+    box-shadow:
+      inset 0 1px 0 #ffffff1c,
+      0 12px 0 #1f4a4c,
+      0 26px 40px #070e223f;
+  }
+  .world-art:hover .realm-render {
+    filter: drop-shadow(0 18px 12px #07102160) brightness(1.06);
+  }
+}
+@media (max-width: 1000px) {
+  main {
+    padding: 0 22px;
+  }
+  .hero {
+    grid-template-columns: 0.85fr 1.15fr;
+    min-height: 530px;
+  }
+  .hero-copy {
+    padding: 58px 0 40px 27px;
+  }
+  .hero h1 {
+    font-size: 43px;
+  }
+  .hero-playground,
+  .island-playground {
+    min-height: 530px;
+  }
+  .island-playground {
+    padding: 20px 15px;
+  }
+  .playground-canvas {
+    height: 365px;
+  }
+  .hero-copy > p:not(.eyebrow) {
+    font-size: 13px;
+  }
+  .hero .primary {
+    padding: 15px 18px;
+    font-size: 13px;
+  }
+  .hero-meta {
+    flex-direction: column;
+    gap: 9px;
+  }
+  .world-grid {
+    gap: 17px;
+  }
+  .world-art {
+    height: 205px;
+  }
+  .world-content {
+    padding: 10px 18px 20px;
+  }
+  .world-content h3 {
+    font-size: 21px;
+  }
+  .realm-picker {
+    gap: 6px;
+  }
+  .realm-picker button {
+    min-width: 36px;
+    min-height: 40px;
+    padding: 8px;
+  }
+  .playground-caption {
+    font-size: 7px;
+    letter-spacing: 1px;
+  }
+}
+@media (max-width: 700px) {
+  header {
+    padding: 15px;
+  }
+  .brand {
+    font-size: 23px;
+  }
+  .hero {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    border-radius: 23px;
+  }
+  .hero-copy {
+    padding: 30px 25px 10px;
+    order: 1;
+  }
+  .hero h1 {
+    font-size: 42px;
+    letter-spacing: -1.7px;
+    margin: 0 0 18px;
+  }
+  .hero-copy > p:not(.eyebrow) {
+    font-size: 13px;
+    line-height: 1.7;
+  }
+  .hero .eyebrow {
+    letter-spacing: 1.5px;
+    font-size: 8px !important;
+  }
+  .hero .primary {
+    font-size: 14px;
+    padding: 15px 20px;
+  }
+  .hero-meta {
+    flex-direction: row;
+    gap: 18px;
+    margin-top: 20px;
+  }
+  .hero-playground {
+    order: 2;
+    min-height: 450px;
+  }
+  .island-playground {
+    min-height: 450px;
+    padding: 16px 16px 22px;
+  }
+  .playground-caption {
+    padding: 0 8px;
+    font-size: 7px;
+  }
+  .playground-canvas {
+    height: 300px;
+  }
+  .playground-toolbar {
+    margin-top: -12px;
+    font-size: 9px;
+    gap: 10px;
+  }
+  .playground-toolbar button {
+    min-width: 40px;
+    min-height: 40px;
+  }
+  .realm-picker {
+    margin-top: 14px;
+    gap: 7px;
+  }
+  .realm-picker button {
+    min-width: 39px;
+    min-height: 43px;
+  }
+  .selected-realm {
+    font-size: 12px;
+    margin-top: 14px;
+  }
+  .daily {
+    padding: 20px;
+    margin-top: 28px;
+    gap: 12px;
+  }
+  .daily h3 {
+    font-size: 20px;
+  }
+  .daily p {
+    font-size: 11px;
+  }
+  .daily button {
+    font-size: 11px;
+    padding: 10px;
+  }
+  .world-grid {
+    gap: 13px;
+  }
+  .world-art {
+    height: 170px;
+  }
+  .world-art b {
+    width: 27px;
+    height: 27px;
+    left: 10px;
+    top: 10px;
+    font-size: 10px;
+  }
+  .world-content {
+    padding: 10px 14px 17px;
+  }
+  .world-content h3 {
+    font-size: 20px;
+  }
+  .world-content p {
+    font-size: 11px;
+    min-height: 75px;
+  }
+  .restored {
+    right: 10px;
+    bottom: 10px;
+    font-size: 6px;
+    letter-spacing: 0.5px;
+  }
+  .world-bottom {
+    font-size: 9px;
+  }
+  .world-bottom button {
+    width: 35px;
+    min-height: 40px;
+  }
+  .section-title h2 {
+    font-size: 23px;
+  }
+  .section-title .eyebrow {
+    font-size: 8px !important;
+  }
+  .pill {
+    font-size: 8px;
+  }
+  .battle-art {
+    height: 250px;
+  }
+  .boss .battle-art {
+    height: 275px;
+  }
+  .battle-art > .world-artwork {
+    width: 75%;
+    right: -15%;
+  }
+  .battle-art > div:not(.world-artwork) {
+    padding: 30px 23px;
+    max-width: 70%;
+  }
+  .battle-art h2 {
+    font-size: 27px;
+  }
+  .battle-art p {
+    font-size: 11px;
+  }
+  .battle-art:after {
+    background:
+      linear-gradient(90deg, #292d46 10%, #292d4680 55%, transparent),
+      linear-gradient(0deg, #272b43, transparent 40%);
+  }
+  .round-body {
+    padding: 25px;
+  }
+  .round-body h1 {
+    font-size: 28px;
+  }
+  .reward > .world-artwork {
+    height: 240px;
+  }
+  .playground-fallback {
+    inset: 50px 0 130px;
+  }
+  .playground-fallback > p {
+    font-size: 9px;
+    max-width: 90%;
+    text-align: center;
+  }
+}
+@media (max-width: 380px) {
+  .world-grid {
+    grid-template-columns: 1fr;
+  }
+  .world-art {
+    height: 220px;
+  }
+  .world-content p {
+    min-height: 0;
+  }
+  .hero h1 {
+    font-size: 36px;
+  }
+  .hero-meta {
+    gap: 12px;
+    font-size: 9px;
+  }
+  .realm-picker {
+    gap: 5px;
+  }
+  .realm-picker button {
+    min-width: 36px;
+  }
+  .playground-toolbar {
+    gap: 9px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .realm-render {
+    animation: none !important;
+  }
+  .world:hover {
+    transform: none !important;
+  }
+}
+.reduced-motion .realm-render {
+  animation: none !important;
+}
+.reduced-motion .world:hover {
+  transform: none !important;
+}
+.realm-picker button {
+  flex: 1;
+  max-width: 44px;
+  min-width: 0;
+  min-height: 44px;
+}
+.playground-toolbar button {
+  min-width: 44px;
+  min-height: 44px;
+}

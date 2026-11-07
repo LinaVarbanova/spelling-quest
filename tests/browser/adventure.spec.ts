@@ -355,3 +355,68 @@ test("paused spelling resumes after a browser session ends and Stop collects the
     .click();
   await expect(page.locator(".feedback")).toContainText("+20 XP");
 });
+
+test("3D playground selection is keyboard accessible and respects reduced motion", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/");
+  await expect(
+    page.getByRole("region", { name: "Interactive world playground" }),
+  ).toBeVisible();
+  await expect(page.locator(".playground-canvas")).toHaveAttribute(
+    "data-motion",
+    "reduced",
+  );
+  const dragon = page.getByRole("button", {
+    name: "Preview Dragon’s Lair",
+    exact: true,
+  });
+  await dragon.focus();
+  await page.keyboard.press("Enter");
+  await expect(dragon).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".selected-realm")).toContainText("Dragon’s Lair");
+  const art = page.locator(".world .realm-render");
+  await expect(art).toHaveCount(6);
+  for (const image of await art.all())
+    expect(
+      await image.evaluate((img: HTMLImageElement) => img.naturalWidth),
+    ).toBe(960);
+  await page.getByRole("button", { name: "Continue your journey" }).click();
+  await expect(page.getByRole("button", { name: "Cast spell" })).toBeDisabled();
+});
+
+test("WebGL unavailable still provides world previews and a playable quest", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const original = HTMLCanvasElement.prototype.getContext;
+    Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+      value: function (
+        this: HTMLCanvasElement,
+        type: string,
+        ...args: unknown[]
+      ) {
+        if (
+          type === "webgl" ||
+          type === "webgl2" ||
+          type === "experimental-webgl"
+        )
+          return null;
+        return Reflect.apply(original, this, [type, ...args]);
+      },
+    });
+  });
+  await page.goto("/");
+  await expect(
+    page.getByText(
+      "3D view unavailable. Explore with the world buttons below.",
+    ),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Preview Crystal Caves", exact: true })
+    .click();
+  await expect(page.locator(".selected-realm")).toContainText("Crystal Caves");
+  await page.getByRole("button", { name: "Continue your journey" }).click();
+  await expect(page.getByLabel("Your spelling", { exact: true })).toBeEnabled();
+});

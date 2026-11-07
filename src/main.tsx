@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { registerSW } from "virtual:pwa-register";
 import {
@@ -25,6 +25,8 @@ import {
 } from "./speech";
 import { Crest, TreasureChest, WorldArt } from "./Art";
 import "./style.css";
+import "./playground.css";
+const IslandPlayground = lazy(() => import("./IslandPlayground"));
 const recognizer = new BrowserSpellingRecognizer();
 const today = () => new Date().toLocaleDateString("en-CA");
 function App() {
@@ -382,11 +384,21 @@ function App() {
                   10 words per quest <span>About 10 minutes</span>
                 </div>
               </div>
-              <div className="hero-art">
-                <WorldArt world={world} />
-                <span className="map-label">
-                  {worlds[world].name.toUpperCase()}
-                </span>
+              <div className="hero-playground">
+                <Suspense
+                  fallback={
+                    <div className="playground-loading">
+                      <WorldArt world={world} />
+                      <p>Opening your world…</p>
+                    </div>
+                  }
+                >
+                  <IslandPlayground
+                    world={world}
+                    reduced={reduced}
+                    onSelect={setWorld}
+                  />
+                </Suspense>
               </div>
             </section>
             <section className="daily">
@@ -448,7 +460,7 @@ function App() {
                             });
                         }}
                       >
-                        <WorldArt world={i} />
+                        <WorldArt world={i} thumbnail />
                         <b>{String(i + 1).padStart(2, "0")}</b>
                         {
                           <span className="restored">

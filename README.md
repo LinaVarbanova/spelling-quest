@@ -83,7 +83,8 @@ No client routing paths are required; screens use local React state, avoiding Pa
 - `src/storage.ts`: `ProgressStore` interface and IndexedDB adapter.
 - `src/speech.ts`: `PromptSpeaker`, `SpellingRecognizer`, browser adapter, conservative letter parser.
 - `src/local-recognizer.ts`: optional local Vosk implementation of the recognizer contract.
-- `src/Art.tsx`: six regional viewports into original illustrated fairy realms, with lightweight SVG crests and treasure artwork.
+- `src/Art.tsx`: separate high-resolution 3D realm posters and lightweight SVG crests/treasure artwork.
+- `src/IslandPlayground.tsx` and `src/playground-scene.ts`: a lazy-loaded original Three.js playground, with draggable islands, keyboard-accessible world controls, reduced-motion support and a non-WebGL fallback.
 - `src/main.tsx`: responsive screens, game loop and recognition confirmation.
 - `scripts/validate-words.mjs`: build-time integrity gate, exact 250 entries, contiguous IDs, uniqueness and nonempty original fields. The authoritative JSON is unmodified.
 
@@ -103,6 +104,10 @@ Web Speech recognition is not universally supported (notably Firefox) and can va
 
 ## Assets and licenses
 
-The fairy-world environment is original ImageGen artwork created for this game, compressed into a single 663 KiB WebP served locally and cached offline. Six SVG viewports reuse that asset without downloading it six times. Source notes are in `public/worlds/ARTWORK.md`. Crest, treasure and app icon SVG artwork is original code in this repository; no third-party franchise art, external fonts, image CDNs or recorded sound files. Fonts are installed system fonts. Optional success tone is synthesized with Web Audio and defaults off. Decorative motion respects OS reduced-motion and can be disabled in Settings. The precached app and illustrated artwork total approximately 1 MiB. The unused optional Vosk adapter is not bundled.
+The six current realms are original procedural 3D scenes in `src/playground-scene.ts`. The live hero renders real WebGL geometry; cards use individual 960px posters and quest scenes use individual 2400px posters. No enlarged atlas crops are used. Source notes and regeneration instructions are in `public/worlds/ARTWORK.md`. Run `npm run render:worlds` while the dev server is running to regenerate the committed assets using Playwright.
 
-Third-party runtime packages: React (MIT), idb (ISC), vosk-browser/Vosk (Apache-2.0; see their distributed licenses). Acoustic models have separate licenses: consult the selected model’s official catalog entry. The competition curriculum is supplied by the project; its source URL is preserved in the JSON. The app does not claim ownership of that official source.
+Crest, treasure and app icon SVG artwork is original code. No purchased models, franchise art, external fonts, image CDNs or recorded sounds. Fonts are installed system fonts; optional success audio uses Web Audio and defaults off. Motion respects both OS reduced-motion and Settings. The WebGL module is lazy-loaded, rendering is capped at approximately 30 FPS and pauses offscreen/in hidden tabs; reduced-motion mode uses static frames updated only by interaction. Pixel ratio is capped at 2. Context loss or lack of WebGL falls back to original static posters with the same HTML controls. Actual GPU performance on Android tablet hardware remains unverified.
+
+The earlier ImageGen atlas remains in the repository as design history but is excluded from offline precaching. All active artwork and the 3D code are cached by the PWA; no remote assets or paid APIs are needed.
+
+Third-party runtime packages: React (MIT), Three.js (MIT), idb (ISC), vosk-browser/Vosk (Apache-2.0; see their distributed licenses). Acoustic models have separate licenses: consult the selected model’s official catalog entry. The competition curriculum is supplied by the project; its source URL is preserved in the JSON. The app does not claim ownership of that official source.

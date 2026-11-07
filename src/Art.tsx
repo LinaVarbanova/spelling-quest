@@ -7,43 +7,26 @@ const realmNames = [
   "Champion’s Kingdom",
 ];
 
-/** One original illustrated continent; SVG viewports frame each realm without duplicating the image download. */
+/** Each realm uses its own 2400px 3D render, not a crop enlarged from a shared illustration. */
 export function WorldArt({
   world = 0,
   boss = false,
+  thumbnail = false,
 }: {
   world?: number;
   boss?: boolean;
+  thumbnail?: boolean;
 }) {
-  const column = world % 3,
-    row = Math.floor(world / 3);
   return (
     <div className={"world-artwork" + (boss ? " guardian-scene" : "")}>
-      <svg
-        className="realm-illustration"
-        viewBox={`${column * 512} ${row ? [350, 390, 400][column] : 0} 512 512`}
-        preserveAspectRatio="xMidYMid slice"
-        role="img"
-        aria-label={`${realmNames[world]} illustrated fairy-tale landscape`}
-      >
-        <image
-          href={`${import.meta.env.BASE_URL}worlds/fairy-realms.webp`}
-          width="1536"
-          height="1024"
-        />
-      </svg>
-      <span className="fairy-sparks" aria-hidden="true">
-        {Array.from({ length: 12 }, (_, i) => (
-          <i
-            key={i}
-            style={{
-              left: `${8 + i * 7}%`,
-              animationDelay: `${i * 0.65}s`,
-              bottom: `${8 + (i % 4) * 12}%`,
-            }}
-          />
-        ))}
-      </span>
+      <img
+        className="realm-render"
+        src={`${import.meta.env.BASE_URL}worlds/realm-${world + 1}${thumbnail ? "-card" : ""}.webp`}
+        width={thumbnail ? 960 : 2400}
+        height={thumbnail ? 560 : 1400}
+        alt={`${realmNames[world]} floating 3D island`}
+        decoding="async"
+      />
       {boss && world !== 4 && (
         <span className="guardian-aura" aria-hidden="true">
           <Crest />
