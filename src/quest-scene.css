@@ -78,3 +78,13 @@
     bottom: 8px;
   }
 }
+.play .feedback.retry {
+  border-color: #bfe3ff;
+  background: #bfe3ff0e;
+}
+.reward.defeat {
+  animation: none;
+}
+.play .feedback.retry strong {
+  color: #cbe8ff;
+}

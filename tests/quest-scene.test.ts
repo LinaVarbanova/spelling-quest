@@ -170,3 +170,32 @@ describe("rune bridges and queue", () => {
     expect(calls.dispose).toHaveBeenCalledOnce();
   });
 });
+
+describe("gentle misses", () => {
+  it("crosses a blue wisp bridge without awarding a gold lantern", async () => {
+    const { api, states } = fixture();
+    api.typed("wrong");
+    await api.resolve({ correct: false, word: "body" });
+    expect(states.at(-1)).toMatchObject({
+      arrived: 1,
+      gap: 1,
+      gold: 0,
+      blue: 1,
+      walking: false,
+    });
+    api.dispose();
+  });
+  it("keeps the hero and gap on a boss retry", async () => {
+    const { api, states } = fixture();
+    api.typed("wrong");
+    await api.resolve({ correct: false, word: "body", retrySameGap: true });
+    expect(states.at(-1)).toMatchObject({
+      arrived: 0,
+      gap: 0,
+      gold: 0,
+      blue: 0,
+      phase: "ready",
+    });
+    api.dispose();
+  });
+});

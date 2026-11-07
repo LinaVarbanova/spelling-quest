@@ -68,3 +68,20 @@ test("a correct spell crosses while Next stays immediately usable", async ({
     timeout: 6000,
   });
 });
+
+test("a miss marks the lantern blue and dims exactly one life", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Continue your journey" }).click();
+  await page.getByLabel("Your spelling", { exact: true }).fill("wrong");
+  await page.getByRole("button", { name: "Cast spell" }).click();
+  await expect(page.locator('[data-scene-blue="1"]')).toBeVisible();
+  await expect(page.locator(".life.full")).toHaveCount(2);
+  await expect(page.locator(".quest-stage")).toHaveAttribute(
+    "data-scene-gold",
+    "0",
+  );
+  await expect(page.getByRole("button", { name: "Next word" })).toBeEnabled();
+});

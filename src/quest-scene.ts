@@ -379,10 +379,15 @@ export function createQuestScene(
     textures.add(texture);
     return texture;
   }
-  function makeStone(gap: number, letter: string, index: number) {
+  function makeStone(
+    gap: number,
+    letter: string,
+    index: number,
+    kind: "typed" | "blue" = "typed",
+  ) {
     const m = new THREE.MeshStandardMaterial({
-      color: "#a194d6",
-      emissive: "#46356e",
+      color: kind === "blue" ? "#bfe3ff" : "#a194d6",
+      emissive: kind === "blue" ? "#45769d" : "#46356e",
       emissiveIntensity: 0.55,
       roughness: 0.6,
       transparent: true,
@@ -390,7 +395,7 @@ export function createQuestScene(
     materials.add(m);
     const tile = new THREE.Mesh(runeGeometry, m);
     const spriteMaterial = new THREE.SpriteMaterial({
-      map: letterTexture(letter, "#fff0d2"),
+      map: letterTexture(letter, kind === "blue" ? "#dff3ff" : "#fff0d2"),
       transparent: true,
       depthWrite: false,
     });
@@ -461,6 +466,106 @@ export function createQuestScene(
         );
       }),
     );
+  const glowCanvas = document.createElement("canvas");
+  glowCanvas.width = glowCanvas.height = 64;
+  const glowContext = glowCanvas.getContext("2d");
+  let glowTexture: THREE.Texture;
+  if (glowContext) {
+    const gradient = glowContext.createRadialGradient(32, 32, 0, 32, 32, 32);
+    gradient.addColorStop(0, "rgba(220,244,255,1)");
+    gradient.addColorStop(1, "rgba(145,196,255,0)");
+    glowContext.fillStyle = gradient;
+    glowContext.fillRect(0, 0, 64, 64);
+    glowTexture = new THREE.CanvasTexture(glowCanvas);
+  } else {
+    glowTexture = new THREE.DataTexture(
+      new Uint8Array([190, 227, 255, 180]),
+      1,
+      1,
+    );
+    glowTexture.needsUpdate = true;
+  }
+  textures.add(glowTexture);
+  const wisp = new THREE.Group();
+  add(wisp, new THREE.SphereGeometry(0.1, 8, 6), mat("#dff3ff", true));
+  const glowMaterial = new THREE.SpriteMaterial({
+    map: glowTexture,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+  materials.add(glowMaterial);
+  const glow = new THREE.Sprite(glowMaterial);
+  glow.scale.set(0.65, 0.65, 1);
+  wisp.add(glow);
+  const wispLight = new THREE.PointLight("#bfe3ff", 0.6, 4, 2);
+  wisp.add(wispLight);
+  wisp.position.copy(hero.position).add(new THREE.Vector3(1.15, 2.05, 0));
+  scene.add(wisp);
+  let wispFree = true;
+  const wispTarget = wisp.position.clone();
+  const wait = (ms: number) =>
+    animate(
+      ms,
+      () => {},
+      (t) => t,
+    );
+  async function crumble(list: Stone[]) {
+    list.forEach((stone) => {
+      stone.mesh.material.color.set("#77708f");
+      stone.mesh.material.emissive.set("#27243f");
+      stone.sprite.material.map = letterTexture(stone.letter, "#b8afcb");
+    });
+    await wait(250);
+    if (disposed) return;
+    await Promise.all(
+      list.splice(0).map(async (stone, i) => {
+        await wait(i * 60);
+        if (disposed) return;
+        const from = stone.mesh.position.clone(),
+          rotation = stone.mesh.rotation.clone();
+        await animate(
+          900,
+          (t) => {
+            stone.mesh.position
+              .copy(from)
+              .add(
+                new THREE.Vector3(
+                  Math.sin(i + 1) * t * 0.4,
+                  -t * t * 5,
+                  Math.cos(i + 1) * t * 0.4,
+                ),
+              );
+            stone.mesh.rotation.x = rotation.x + Math.sin(i + 1) * t * 2;
+            stone.mesh.rotation.z = rotation.z + Math.cos(i + 1) * t * 2;
+            stone.mesh.material.opacity = 1 - t;
+            stone.sprite.material.opacity = 1 - t;
+          },
+          (t) => t,
+        );
+        if (!disposed) removeStone(stone);
+      }),
+    );
+  }
+  async function blueBridge(gap: number, word: string, list: Stone[]) {
+    wispFree = false;
+    wispTarget.copy(bridgePoint(gap, 0)).add(new THREE.Vector3(0, 1.2, 0));
+    if (!motion) wisp.position.copy(wispTarget);
+    await wait(500);
+    if (disposed) return;
+    const letters = word
+      .toLowerCase()
+      .replace(/[^a-z]/g, "")
+      .slice(0, 14);
+    for (let i = 0; i < letters.length; i++) {
+      if (disposed) return;
+      list.push(makeStone(gap, letters[i], i, "blue"));
+      wispTarget.copy(typedSlot(gap, i)).add(new THREE.Vector3(0, 1.1, 0));
+      await wait(120);
+    }
+    await stretch(gap, list);
+    wispFree = true;
+  }
   let chain = Promise.resolve(),
     pending = 0;
   async function crossGap(gap: number) {
@@ -495,10 +600,12 @@ export function createQuestScene(
     body.position.y = 0;
     body.rotation.z = 0;
   }
-  function ignite(index: number) {
+  function ignite(index: number, helped = false) {
     const post = posts[index];
     if (!post) return;
-    post.material.color.set("#ffe8b4");
+    post.material.color.set(helped ? "#dff3ff" : "#ffe8b4");
+    post.material.emissive.set(helped ? "#bfe3ff" : "#ffd89c");
+    post.light.color.set(helped ? "#bfe3ff" : "#ffd89c");
     post.light.visible = true;
     void animate(700, (t) => {
       post.material.emissiveIntensity = t * 1.4;
@@ -506,6 +613,7 @@ export function createQuestScene(
     });
     for (let i = 1; i < posts.length; i++)
       if (posts[i]) posts[i].light.visible = Math.abs(i - index) < 2;
+    if (helped) return;
     const from = hemi.intensity,
       fog = scene.fog as THREE.FogExp2,
       startFog = fog.density;
@@ -524,7 +632,7 @@ export function createQuestScene(
     if (result.correct) syncTyped(result.word);
     const list = stones[gap];
     stones[gap] = [];
-    if (!result.retrySameGap) state.gap++;
+    if (result.correct || !result.retrySameGap) state.gap++;
     pending++;
     notify();
     chain = chain.then(async () => {
@@ -533,10 +641,15 @@ export function createQuestScene(
       notify();
       try {
         if (!result.correct) {
-          if (!result.retrySameGap) {
-            state.arrived = gap + 1;
-            hero.position.copy(standAt(gap + 1));
-          }
+          await crumble(list);
+          if (disposed || result.retrySameGap) return;
+          await blueBridge(gap, result.word, list);
+          if (disposed) return;
+          await crossGap(gap);
+          if (disposed) return;
+          state.arrived = gap + 1;
+          state.blue++;
+          ignite(gap + 1, true);
           return;
         }
         list.forEach((stone) => {
@@ -626,6 +739,18 @@ export function createQuestScene(
         : Math.sin(time * 2) * 0.02;
       body.rotation.z = state.walking ? Math.sin(time * 9) * 0.06 : 0;
     }
+    const wispWant = wispFree
+      ? hero.position
+          .clone()
+          .add(
+            new THREE.Vector3(
+              motion ? Math.cos(time * 1.1) * 1.15 : 1.15,
+              2.05 + (motion ? Math.sin(time * 2.1) * 0.15 : 0),
+              motion ? Math.sin(time * 1.1) * 1.15 : 0,
+            ),
+          )
+      : wispTarget;
+    wisp.position.lerp(wispWant, motion ? 1 - Math.exp(-6 * dt) : 1);
     updateCamera(dt);
     renderer.render(scene, camera);
     notify();
