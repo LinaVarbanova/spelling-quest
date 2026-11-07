@@ -5,18 +5,36 @@ export interface SpeechSettings {
 }
 export interface PromptSpeaker {
   available(): boolean;
-  speak(text: string, settings: SpeechSettings, onError: () => void): void;
+  speak(
+    text: string,
+    settings: SpeechSettings,
+    onError: () => void,
+    onActivity?: (active: boolean) => void,
+  ): void;
   stop(): void;
 }
+let endPrompt: (() => void) | undefined;
 export const speaker: PromptSpeaker = {
   available: () => "speechSynthesis" in window,
-  speak(text, settings, onError) {
+  speak(text, settings, onError, onActivity) {
     if (!this.available()) {
       onError();
       return;
     }
     this.stop();
     const u = new SpeechSynthesisUtterance(text);
+    let ended = false;
+    const done = () => {
+      if (ended) return;
+      ended = true;
+      onActivity?.(false);
+      if (endPrompt === done) endPrompt = undefined;
+    };
+    endPrompt = done;
+    u.onstart = () => {
+      if (!ended) onActivity?.(true);
+    };
+    u.onend = done;
     u.lang = settings.locale;
     u.rate = settings.rate;
     u.voice =
@@ -25,11 +43,18 @@ export const speaker: PromptSpeaker = {
       speechSynthesis.getVoices().find((v) => v.lang.startsWith("en")) ||
       null;
     u.onerror = (e) => {
+      done();
       if (e.error !== "interrupted" && e.error !== "canceled") onError();
     };
-    speechSynthesis.speak(u);
+    try {
+      speechSynthesis.speak(u);
+    } catch {
+      done();
+      onError();
+    }
   },
   stop() {
+    endPrompt?.();
     if (this.available()) speechSynthesis.cancel();
   },
 };

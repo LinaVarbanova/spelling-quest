@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createQuestScene, type QuestSceneState } from "../src/quest-scene";
 const calls = vi.hoisted(() => ({
   render: vi.fn(),
+  size: vi.fn(),
   dispose: vi.fn(),
   pixelRatio: vi.fn(),
   lose: vi.fn(),
@@ -27,14 +28,14 @@ vi.mock("three", async (importOriginal) => {
       outputColorSpace = "";
       setPixelRatio = calls.pixelRatio;
       setClearColor = vi.fn();
-      setSize = vi.fn();
+      setSize = calls.size;
       render = calls.render;
       dispose = calls.dispose;
       forceContextLoss = calls.lose;
     },
   };
 });
-function fixture(motion = false, world = 0, boss = false) {
+function fixture(motion = false, world = 0, boss = false, wordCount = 10) {
   const states: QuestSceneState[] = [];
   const container = Object.assign(new EventTarget(), {
     clientWidth: 1024,
@@ -44,7 +45,7 @@ function fixture(motion = false, world = 0, boss = false) {
   }) as unknown as HTMLElement;
   const api = createQuestScene(
     container,
-    { world, boss, wordCount: 10, seed: "test-quest", motion },
+    { world, boss, wordCount, seed: "test-quest", motion },
     (s) => states.push(s),
   );
   return { api, states, container };
@@ -221,7 +222,7 @@ describe("six themed worlds", () => {
     const THREE = await import("three");
     const { questLightTypes } = await import("../src/quest-scene");
     for (let world = 0; world < 6; world++) {
-      const { api, container } = fixture(false, world);
+      const { api, container } = fixture(false, world, true, 25);
       await vi.advanceTimersByTimeAsync(40);
       expect(container.dataset.sceneWorld).toBe(String(world));
       expect(container.dataset.sceneLight).toBe(questLightTypes[world]);
@@ -263,4 +264,78 @@ describe("guardian battles", () => {
     });
     api.dispose();
   });
+});
+
+describe("motion polish", () => {
+  it("swoops into ready and switches to an immediate still when motion is disabled", async () => {
+    const { api, states } = fixture(true);
+    expect(states.at(-1)?.phase).toBe("intro");
+    await vi.advanceTimersByTimeAsync(2400);
+    expect(states.at(-1)?.phase).toBe("ready");
+    api.setMotion(false);
+    await vi.advanceTimersByTimeAsync(100);
+    const painted = calls.render.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(500);
+    expect(calls.render).toHaveBeenCalledTimes(painted);
+    api.dispose();
+  });
+  it("finishes with an open gate and reacts to pronunciation without changing spelling state", async () => {
+    const { api, states, container } = fixture();
+    api.hear(true);
+    expect(container.dataset.sceneHearing).toBe("true");
+    api.hear(false);
+    for (let i = 0; i < 10; i++)
+      await api.resolve({ correct: true, word: "body" });
+    await api.finish();
+    expect(container.dataset.sceneGate).toBe("open");
+    expect(states.at(-1)).toMatchObject({
+      phase: "finished",
+      arrived: 10,
+      gold: 10,
+    });
+    api.dispose();
+  });
+  it("disposes every visible geometry, material and rune texture", async () => {
+    const THREE = await import("three");
+    const { api } = fixture();
+    api.typed("bee");
+    await vi.advanceTimersByTimeAsync(40);
+    const scene = calls.render.mock.lastCall?.[0] as import("three").Scene;
+    const resources = new Set<
+      | import("three").BufferGeometry
+      | import("three").Material
+      | import("three").Texture
+    >();
+    scene.traverse((o) => {
+      if (
+        o instanceof THREE.Mesh ||
+        o instanceof THREE.Points ||
+        o instanceof THREE.Sprite
+      ) {
+        // Sprite quad geometry is shared internally by Three.js, not owned by a scene.
+        if (o instanceof THREE.Mesh || o instanceof THREE.Points)
+          resources.add(o.geometry);
+        for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+          resources.add(m);
+          if ("map" in m && m.map instanceof THREE.Texture)
+            resources.add(m.map);
+        }
+      }
+    });
+    const dispose = vi.fn();
+    resources.forEach((r) => r.addEventListener("dispose", dispose));
+    api.dispose();
+    expect(dispose).toHaveBeenCalledTimes(resources.size);
+  });
+});
+
+it("releases a partially initialized renderer before falling back", async () => {
+  calls.size.mockImplementationOnce(() => {
+    throw Error("GPU initialization failed");
+  });
+  expect(() => fixture()).toThrow("GPU initialization failed");
+  expect(calls.dispose).toHaveBeenCalledOnce();
+  expect(calls.lose).toHaveBeenCalledOnce();
+  await vi.advanceTimersByTimeAsync(100);
+  expect(calls.render).not.toHaveBeenCalled();
 });

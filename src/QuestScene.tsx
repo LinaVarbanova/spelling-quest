@@ -11,6 +11,7 @@ export type QuestSceneProps = Omit<QuestSceneOptions, "motion"> & {
   objective: string;
   fallback: ReactNode;
   answer: string;
+  hearing: boolean;
   resolution: (QuestResolution & { id: string; last: boolean }) | null;
 };
 export default function QuestScene({
@@ -23,6 +24,7 @@ export default function QuestScene({
   objective,
   fallback,
   answer,
+  hearing,
   resolution,
 }: QuestSceneProps) {
   const host = useRef<HTMLDivElement>(null),
@@ -74,6 +76,9 @@ export default function QuestScene({
     };
   }, [world, boss, wordCount, seed, reduced]);
   useEffect(() => {
+    api.current?.hear(hearing);
+  }, [hearing]);
+  useEffect(() => {
     if (!resolution) {
       try {
         api.current?.typed(answer);
@@ -95,7 +100,11 @@ export default function QuestScene({
     });
     if (resolution.last && !finished.current) {
       finished.current = true;
-      void api.current.finish();
+      void api.current.finish().catch(() => {
+        api.current?.dispose();
+        api.current = null;
+        setUnavailable(true);
+      });
     }
   }, [resolution]);
   if (unavailable) return <>{fallback}</>;

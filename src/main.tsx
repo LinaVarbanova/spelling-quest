@@ -42,6 +42,7 @@ function App() {
     [ready, setReady] = useState(false),
     [page, setPage] = useState("map"),
     [sceneRun, setSceneRun] = useState(0),
+    [pronouncing, setPronouncing] = useState(false),
     [world, setWorld] = useState(0),
     [active, setActive] = useState<Quest>(quests[0]),
     [round, setRound] = useState(0),
@@ -193,6 +194,7 @@ function App() {
         setNotice(
           "Audio unavailable. Check your installed English system voices or choose another voice in settings.",
         ),
+      setPronouncing,
     );
   }
   function chime() {
@@ -619,6 +621,7 @@ function App() {
           >
             <Suspense fallback={questBanner}>
               <QuestScene
+                hearing={pronouncing}
                 key={sceneRun}
                 world={active.world}
                 boss={active.boss}
