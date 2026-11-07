@@ -1,6 +1,8 @@
 import { test, expect } from "@playwright/test";
 import { readFileSync } from "node:fs";
+import { compareComplexity } from "../../src/difficulty";
 const curriculum = JSON.parse(readFileSync("words-2027-junior.json", "utf8"));
+const learningWords = [...curriculum.entries].sort(compareComplexity);
 test("complete a quest, persist XP, unlock trail and reload offline", async ({
   page,
   context,
@@ -10,14 +12,16 @@ test("complete a quest, persist XP, unlock trail and reload offline", async ({
     page.getByRole("button", { name: "Continue your journey" }),
   ).toBeEnabled();
   await page.getByRole("button", { name: "Continue your journey" }).click();
-  await expect(page.locator(".round-body")).not.toContainText("accident");
+  await expect(page.locator(".round-body")).not.toContainText(
+    learningWords[0].word,
+  );
   for (let i = 0; i < 10; i++) {
     await page
       .getByLabel("Your spelling", { exact: true })
-      .fill(curriculum.entries[i].word);
+      .fill(learningWords[i].word);
     await page.getByRole("button", { name: "Cast spell" }).click();
     await expect(
-      page.getByRole("status").filter({ hasText: curriculum.entries[i].word }),
+      page.getByRole("status").filter({ hasText: learningWords[i].word }),
     ).toBeVisible();
     await page
       .getByRole("button", { name: i === 9 ? "See your journey" : "Next word" })
@@ -74,7 +78,7 @@ test("all words searchable; tablet layout fits; unsupported speech is explicit",
 test("spoken candidate must be confirmed; recognition errors do not score", async ({
   page,
 }) => {
-  await page.addInitScript(() => {
+  await page.addInitScript((spelling) => {
     class FakeRecognition {
       processLocally = true;
       lang = "";
@@ -92,7 +96,7 @@ test("spoken candidate must be confirmed; recognition errors do not score", asyn
             results: [
               {
                 isFinal: true,
-                0: { transcript: "a c c i d e n t", confidence: 0.95 },
+                0: { transcript: spelling, confidence: 0.95 },
               },
             ],
             resultIndex: 0,
@@ -107,14 +111,16 @@ test("spoken candidate must be confirmed; recognition errors do not score", asyn
     Object.defineProperty(window, "SpeechRecognition", {
       value: FakeRecognition,
     });
-  });
+  }, learningWords[0].word.split("").join(" "));
   await page.goto("/");
   await page.getByRole("button", { name: "Continue your journey" }).click();
   await page
     .getByRole("button", { name: "Listen & Spell Aloud", exact: true })
     .click();
   await page.getByRole("button", { name: "Start recording" }).click();
-  await expect(page.getByLabel("Detected letters")).toContainText("A");
+  await expect(page.getByLabel("Detected letters")).toContainText(
+    learningWords[0].word[0].toUpperCase(),
+  );
   await expect(page.locator("html")).toHaveAttribute(
     "data-recognition-local",
     "false",
@@ -215,6 +221,7 @@ test("import, boss retry, relic reward and export are playable", async ({
   await expect(page.locator("input[type=file]")).toBeEnabled();
   const backup = {
     version: 1,
+    curriculumVersion: 2,
     xp: 200,
     completedQuests: ["0-0", "0-1", "0-2", "0-3"],
     records: {},
@@ -244,7 +251,7 @@ test("import, boss retry, relic reward and export are playable", async ({
   for (let i = 40; i < 50; i++) {
     await page
       .getByLabel("Your spelling", { exact: true })
-      .fill(curriculum.entries[i].word);
+      .fill(learningWords[i].word);
     await page.getByRole("button", { name: "Cast spell" }).click();
     await page
       .getByRole("button", {
@@ -309,7 +316,9 @@ test("paused spelling resumes after a browser session ends and Stop collects the
     });
   });
   await page.goto("/");
-  await page.getByRole("button", { name: "Continue your journey" }).click();
+  await page.getByRole("button", { name: "Word Vault", exact: true }).click();
+  await page.getByLabel("Search official words").fill("accident");
+  await page.getByRole("button", { name: "Practise", exact: true }).click();
   await page
     .getByRole("button", { name: "Listen & Spell Aloud", exact: true })
     .click();
@@ -419,4 +428,24 @@ test("WebGL unavailable still provides world previews and a playable quest", asy
   await expect(page.locator(".selected-realm")).toContainText("Crystal Caves");
   await page.getByRole("button", { name: "Continue your journey" }).click();
   await expect(page.getByLabel("Your spelling", { exact: true })).toBeEnabled();
+});
+
+test("vault defaults to complexity and offers alphabetical reference order", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Word Vault", exact: true }).click();
+  await expect(page.getByLabel("Word ordering")).toHaveValue("complexity");
+  await expect(page.locator(".word-card h3").first()).toHaveText(
+    learningWords[0].word,
+  );
+  await page.getByLabel("Word ordering").selectOption("alphabetical");
+  await expect(page.locator(".word-card h3").first()).toHaveText("accident");
+  await page.getByLabel("Search official words").fill("rhythm");
+  await expect(page.locator(".word-card .difficulty-tag")).toHaveText(
+    "Champion spellings",
+  );
+  await expect(page.locator(".word-card .chapter")).toContainText(
+    "Champion’s Kingdom",
+  );
 });

@@ -1,5 +1,16 @@
 import curriculum from "../words-2027-junior.json";
 export const words = curriculum.entries;
+import { compareComplexity, wordComplexity } from "./difficulty";
+export { wordComplexity, compareComplexity };
+export const learningWords = [...words].sort(compareComplexity);
+export const difficultyBands = [
+  "Starter spells",
+  "Pattern builder",
+  "Growing confidence",
+  "Tricky spellings",
+  "Expert challenge",
+  "Champion spellings",
+];
 export type Word = (typeof words)[number];
 export const worlds = [
   {
@@ -9,7 +20,7 @@ export const worlds = [
     relic: "Emerald Leaf",
     mechanic: "Discover · translation & sentence hints",
     color: "#3b7960",
-    range: [1, 50],
+    rankRange: [1, 50],
   },
   {
     name: "Crystal Caves",
@@ -18,7 +29,7 @@ export const worlds = [
     relic: "Prism Shard",
     mechanic: "Patterns · letter-count clues",
     color: "#537eab",
-    range: [51, 100],
+    rankRange: [51, 100],
   },
   {
     name: "Whispering Mountains",
@@ -27,7 +38,7 @@ export const worlds = [
     relic: "Sky Feather",
     mechanic: "Listen · slower replay",
     color: "#8076a0",
-    range: [101, 150],
+    rankRange: [101, 150],
   },
   {
     name: "Shadow Castle",
@@ -36,7 +47,7 @@ export const worlds = [
     relic: "Moon Key",
     mechanic: "Memory · fewer hints",
     color: "#6d657b",
-    range: [151, 190],
+    rankRange: [151, 190],
   },
   {
     name: "Dragon’s Lair",
@@ -45,7 +56,7 @@ export const worlds = [
     relic: "Dragon Ember",
     mechanic: "Endurance · two lives",
     color: "#b46c4f",
-    range: [191, 230],
+    rankRange: [191, 230],
   },
   {
     name: "Champion’s Kingdom",
@@ -54,7 +65,7 @@ export const worlds = [
     relic: "Spellkeeper Crown",
     mechanic: "Championship · no hints",
     color: "#b79b4a",
-    range: [231, 250],
+    rankRange: [231, 250],
   },
 ];
 export type Quest = {
@@ -66,19 +77,34 @@ export type Quest = {
 };
 export const quests: Quest[] = worlds.flatMap((w, world) =>
   Array.from(
-    { length: Math.ceil((w.range[1] - w.range[0] + 1) / 10) },
+    { length: Math.ceil((w.rankRange[1] - w.rankRange[0] + 1) / 10) },
     (_, index) => ({
       id: `${world}-${index}`,
       world,
       index,
-      boss: index === Math.ceil((w.range[1] - w.range[0] + 1) / 10) - 1,
-      words: words.slice(
-        w.range[0] - 1 + index * 10,
-        Math.min(w.range[0] - 1 + (index + 1) * 10, w.range[1]),
+      boss: index === Math.ceil((w.rankRange[1] - w.rankRange[0] + 1) / 10) - 1,
+      words: learningWords.slice(
+        w.rankRange[0] - 1 + index * 10,
+        Math.min(w.rankRange[0] - 1 + (index + 1) * 10, w.rankRange[1]),
       ),
     }),
   ),
 );
+export function worldForWord(id: number) {
+  const index = learningWords.findIndex((w) => w.id === id);
+  if (index < 0) throw Error("Unknown official word");
+  return worlds.findIndex(
+    (w) => index >= w.rankRange[0] - 1 && index < w.rankRange[1],
+  );
+}
+export function hasRelic(p: Progress, world: number) {
+  const boss = quests.filter((q) => q.world === world).at(-1)!;
+  return (
+    p.completedQuests.includes(boss.id) ||
+    (p.legacyCompletedQuests || []).includes(boss.id)
+  );
+}
+
 export type Mode = "typed" | "spoken";
 export type Attempt = {
   at: number;
@@ -98,6 +124,8 @@ export type WordProgress = {
 };
 export type Progress = {
   version: 1;
+  curriculumVersion: 2;
+  legacyCompletedQuests?: string[];
   xp: number;
   completedQuests: string[];
   records: Record<string, WordProgress>;
@@ -106,6 +134,7 @@ export type Progress = {
 };
 export const freshProgress = (): Progress => ({
   version: 1,
+  curriculumVersion: 2,
   xp: 0,
   completedQuests: [],
   records: {},
@@ -170,7 +199,11 @@ export function isUnlocked(p: Progress, q: Quest) {
 export function completeQuest(p: Progress, id: string): Progress {
   if (!quests.some((q) => q.id === id) || p.completedQuests.includes(id))
     return p;
-  return { ...p, xp: p.xp + 50, completedQuests: [...p.completedQuests, id] };
+  return {
+    ...p,
+    xp: p.xp + ((p.legacyCompletedQuests || []).includes(id) ? 0 : 50),
+    completedQuests: [...p.completedQuests, id],
+  };
 }
 function reviewPriority(r: WordProgress) {
   const misses = r.attempts - r.correct;
@@ -194,6 +227,14 @@ export function parseBackup(text: string): Progress {
   const p = JSON.parse(text);
   if (
     p?.version !== 1 ||
+    (p.curriculumVersion !== undefined &&
+      p.curriculumVersion !== 1 &&
+      p.curriculumVersion !== 2) ||
+    (p.legacyCompletedQuests !== undefined &&
+      (!Array.isArray(p.legacyCompletedQuests) ||
+        p.legacyCompletedQuests.some(
+          (id: unknown) => !quests.some((q) => q.id === id),
+        ))) ||
     !Number.isSafeInteger(p.xp) ||
     p.xp < 0 ||
     !p.records ||
@@ -237,6 +278,36 @@ export function parseBackup(text: string): Progress {
       r.history.filter((a) => a.correct).length !== r.correct
     )
       throw Error("Invalid word progress");
+  }
+  if (p.curriculumVersion !== 2) {
+    const legacy = [
+      ...new Set<string>([
+        ...(p.legacyCompletedQuests || []),
+        ...p.completedQuests,
+      ]),
+    ];
+    const covered = new Set<number>();
+    for (const id of legacy) {
+      const oldQuest = quests.find((q) => q.id === id)!;
+      const range = worlds[oldQuest.world].rankRange;
+      for (
+        let i = range[0] + oldQuest.index * 10;
+        i < Math.min(range[0] + (oldQuest.index + 1) * 10, range[1] + 1);
+        i++
+      )
+        covered.add(i);
+    }
+    const remapped: string[] = [];
+    for (const quest of quests) {
+      if (!quest.words.every((w) => covered.has(w.id))) break;
+      remapped.push(quest.id);
+    }
+    return {
+      ...p,
+      curriculumVersion: 2,
+      completedQuests: remapped,
+      legacyCompletedQuests: legacy,
+    };
   }
   return p;
 }

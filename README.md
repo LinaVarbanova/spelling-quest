@@ -30,9 +30,9 @@ PLAYWRIGHT_CHROMIUM_PATH=/usr/bin/chromium npm run test:e2e
 
 ## Play
 
-The six worlds contain **25 ten-word quests**, including six guardian battles. Complete quests in order to unlock paths. All **250** original entries are accessible immediately through Word Vault practice, including Bulgarian translations and original English sentences. The primary curriculum assignment is deliberate, contiguous, and exhaustive:
+The six worlds contain **25 ten-word quests**, including six guardian battles. Complete quests in order to unlock paths. All **250** original entries are accessible immediately through Word Vault practice, including Bulgarian translations and original English sentences. The primary curriculum uses a deterministic spelling-complexity order. The rank ranges below refer to this game-derived order, **not official IDs**. The authoritative JSON and original IDs remain unchanged:
 
-| World | Official IDs | Quests | Mechanic |
+| World | Difficulty ranks | Quests | Mechanic |
 | --- | --- | --- | --- |
 | Enchanted Forest | 1–50 | 5 | Discover with optional hints |
 | Crystal Caves | 51–100 | 5 | Letter-count pattern clues |
@@ -43,7 +43,7 @@ The six worlds contain **25 ten-word quests**, including six guardian battles. C
 
 Regular quests have three lives (two in the last two worlds); missed words return in review. Bosses require every word correct, with retries using remaining lives. The last world culminates in a championship guardian. First quest completion gives 50 bonus XP; correct first answers give 20 XP, or 10 with hints; replays give 5. Relics, achievements, and daily review treasure are earned through play. The Word Vault also provides a ten-word weekly review challenge that can be replayed at any time. Daily treasure grants 25 XP once per local calendar day; there are no streak-loss penalties. Short sessions and breaks are encouraged.
 
-The initial order is the source order, **not an official difficulty ranking**. Difficulty changes through hints, life budget, boss retries, and optional championship time pressure. Review prioritizes overdue words, then a combined error-rate/mistake-frequency score and earliest due date. Mastery requires three successful sessions separated by at least 24 hours; a mistake resets the word’s success streak. The default review schedule is 1, 3, 7, 14, 30 days and is injectable in `recordAnswer` for alternative schedules. Per-word history retains typed/spoken provenance, hints, timestamps and outcomes.
+The initial learning path is sorted **from simpler to more complex spelling**, not alphabetically. `src/difficulty.ts` combines length, vowel teams, doubled consonants, final-e patterns, less common consonant sequences, soft c/g and longer endings. An explicit reference table raises selected irregular words such as `cough`, `cupboard`, `hygiene`, `environment` and `rhythm` even when they are short. Ties use length, alphabetical order and then original ID for deterministic results. These are transparent game-derived estimates, **not official competition levels, measured student difficulty, or a claim that every learner finds the same words hard**. The Word Vault defaults to difficulty and can switch to alphabetical or official-list order; each word shows its band and pattern reasons. Worlds retain their themed mechanics, hints, life budgets, boss battles and optional championship timer. Review prioritizes overdue words, then a combined error-rate/mistake-frequency score and earliest due date. Mastery requires three successful sessions separated by at least 24 hours; a mistake resets the word’s success streak. The default review schedule is 1, 3, 7, 14, 30 days and is injectable in `recordAnswer` for alternative schedules. Per-word history retains typed/spoken provenance, hints, timestamps and outcomes.
 
 ## Two spelling modes
 
@@ -58,6 +58,10 @@ The `SpellingRecognizer` interface remains modular. An experimental local Vosk a
 ## Persistence and backups
 
 IndexedDB through `idb` stores a versioned progress object. Export/import is in Adventurer. Import validates the schema, vocabulary IDs, counters and attempt history and replaces current state. Export first to preserve the old device state. Devices do not sync. Browser data clearing/private mode/storage eviction can remove progress. Failed persistence is reported visibly and export remains available. Speech and comfort preferences are visit-local. No audio recordings are stored by the app.
+
+### Difficulty-path migration
+
+Backups retain schema `version: 1` and now carry `curriculumVersion: 2`. Earlier saves without a curriculum version are migrated on load/import: XP, individual word histories, mastery, review dates, activity days and daily treasure claims are preserved. Old alphabetical quest completions are archived in `legacyCompletedQuests`; earned relics and achievements remain visible. A new difficulty quest is carried over only when all of its words belong to previously completed alphabetical quests, and only a contiguous prefix can be unlocked this way. Otherwise its new words must be practised. This avoids silently skipping words after reordering. The journal explains why a trail may reopen. Quest-completion treasure already awarded for an earlier slot is not awarded twice. Migration is deterministic and idempotent. Original official IDs remain the storage keys throughout.
 
 ## Offline and installation
 
@@ -79,7 +83,8 @@ No client routing paths are required; screens use local React state, avoiding Pa
 
 ## Architecture
 
-- `src/game.ts`: source-only curriculum, world assignment, deterministic scoring, progression, review, backup validation.
+- `src/game.ts`: source-only curriculum, complexity-based world assignment, deterministic scoring, progression, review and backward-compatible backup migration.
+- `src/difficulty.ts`: transparent spelling-complexity rules and curated irregular-spelling reference scores.
 - `src/storage.ts`: `ProgressStore` interface and IndexedDB adapter.
 - `src/speech.ts`: `PromptSpeaker`, `SpellingRecognizer`, browser adapter, conservative letter parser.
 - `src/local-recognizer.ts`: optional local Vosk implementation of the recognizer contract.

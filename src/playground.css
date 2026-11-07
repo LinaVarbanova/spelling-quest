@@ -1052,3 +1052,26 @@ footer {
   min-width: 44px;
   min-height: 44px;
 }
+.vault-tools {
+  flex-wrap: wrap;
+}
+.vault-tools input {
+  flex: 1 1 220px;
+}
+.vault-tools select {
+  min-width: 0;
+  max-width: 100%;
+}
+.difficulty-tag {
+  display: inline-block;
+  background: #9bd5bf14;
+  border: 1px solid #a7dec539;
+  border-radius: 8px;
+  color: #bfebd6 !important;
+  font-size: 10px !important;
+  padding: 4px 8px;
+}
+.world-bottom > span {
+  max-width: calc(100% - 45px);
+  line-height: 1.6;
+}

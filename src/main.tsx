@@ -3,6 +3,12 @@ import { createRoot } from "react-dom/client";
 import { registerSW } from "virtual:pwa-register";
 import {
   completeQuest,
+  compareComplexity,
+  learningWords,
+  difficultyBands,
+  worldForWord,
+  wordComplexity,
+  hasRelic,
   freshProgress,
   isUnlocked,
   parseBackup,
@@ -60,6 +66,7 @@ function App() {
     [micError, setMicError] = useState(""),
     [search, setSearch] = useState(""),
     [filter, setFilter] = useState("all"),
+    [vaultSort, setVaultSort] = useState("complexity"),
     [reduced, setReduced] = useState(false),
     [sounds, setSounds] = useState(false),
     [countdown, setCountdown] = useState(90),
@@ -292,7 +299,7 @@ function App() {
     const pool = reviewWords(progress);
     const list = [
       ...pool,
-      ...words.filter((w) => !pool.some((p) => p.id === w.id)),
+      ...learningWords.filter((w) => !pool.some((p) => p.id === w.id)),
     ].slice(0, 10);
     start({ id: kind, world: 0, index: 0, boss: false, words: list });
   }
@@ -431,6 +438,11 @@ function App() {
                   {progress.completedQuests.length} / 25 quests restored
                 </span>
               </div>
+              <p className="small">
+                Follow the difficulty path: simpler spellings first, trickier
+                patterns later. These are game-derived levels, not official
+                competition rankings.
+              </p>
               <div className="world-grid">
                 {worlds.map((w, i) => {
                   const qs = quests.filter((q) => q.world === i),
@@ -481,7 +493,8 @@ function App() {
                         <p>{w.objective}</p>
                         <div className="world-bottom">
                           <span>
-                            Words {w.range[0]}–{w.range[1]}
+                            {w.rankRange[1] - w.rankRange[0] + 1} words ·{" "}
+                            {difficultyBands[i]}
                           </span>
                           <button
                             aria-label={`Show ${w.name} quests`}
@@ -510,7 +523,9 @@ function App() {
                   { "--world": worlds[world].color } as React.CSSProperties
                 }
               >
-                <p className="eyebrow">{worlds[world].mechanic}</p>
+                <p className="eyebrow">
+                  {difficultyBands[world]} · {worlds[world].mechanic}
+                </p>
                 <h2>{worlds[world].name}</h2>
                 <p>{worlds[world].objective}</p>
                 <div className="nodes">
@@ -902,6 +917,8 @@ function App() {
             <p>
               Official spellings, Bulgarian translations and sentences,
               preserved exactly. Practice any word without unlocking its world.
+              Difficulty sorting uses a game-derived estimate of spelling
+              patterns, not an official ranking.
             </p>
             <div className="vault-tools">
               <input
@@ -920,13 +937,29 @@ function App() {
                 <option value="due">Due for review</option>
                 <option value="mastered">Mastered</option>
               </select>
+              <select
+                aria-label="Word ordering"
+                value={vaultSort}
+                onChange={(e) => setVaultSort(e.target.value)}
+              >
+                <option value="complexity">Difficulty: easier first</option>
+                <option value="alphabetical">Alphabetical</option>
+                <option value="official">Official list order</option>
+              </select>
               <button onClick={() => review()}>Review trail · {due} due</button>
               <button onClick={() => review("weekly")}>
                 Weekly review challenge
               </button>
             </div>
             <div className="vault-grid">
-              {words
+              {[...words]
+                .sort(
+                  vaultSort === "complexity"
+                    ? compareComplexity
+                    : vaultSort === "alphabetical"
+                      ? (a, b) => a.word.localeCompare(b.word, "en")
+                      : (a, b) => a.id - b.id,
+                )
                 .filter((w) => {
                   const r = progress.records[w.id];
                   return (
@@ -943,13 +976,18 @@ function App() {
                   <article className="word-card" key={w.id}>
                     <span className="chapter">
                       #{String(w.id).padStart(3, "0")} ·{" "}
-                      {
-                        worlds.find(
-                          (x) => w.id >= x.range[0] && w.id <= x.range[1],
-                        )?.name
-                      }
+                      {worlds[worldForWord(w.id)].name}
                     </span>
                     <h3>{w.word}</h3>
+                    <p
+                      className="difficulty-tag"
+                      title={wordComplexity(w.word).reasons.join(" · ")}
+                    >
+                      {difficultyBands[worldForWord(w.id)]}
+                    </p>
+                    <p className="small">
+                      {wordComplexity(w.word).reasons.join(" · ")}
+                    </p>
                     <p>{w.translation_bg}</p>
                     <p className="example">{w.example_en}</p>
                     <progress
@@ -971,9 +1009,7 @@ function App() {
                       </button>{" "}
                       <button
                         onClick={() => {
-                          const wi = worlds.findIndex(
-                            (x) => w.id >= x.range[0] && w.id <= x.range[1],
-                          );
+                          const wi = worldForWord(w.id);
                           start({
                             id: "practice",
                             world: wi,
@@ -1044,12 +1080,18 @@ function App() {
                 );
               })}
             </div>
+            {!!progress.legacyCompletedQuests?.length && (
+              <p className="notice">
+                Your {progress.legacyCompletedQuests.length} earlier
+                alphabetical quest completions and earned relics are saved.
+                Trails now contain different words, so some reopen on the new
+                difficulty path. Your XP and word history are unchanged.
+              </p>
+            )}
             <h2>Your relic collection</h2>
             <div className="relics">
               {worlds.map((w, i) => {
-                const won = progress.completedQuests.includes(
-                  quests.filter((q) => q.world === i).at(-1)!.id,
-                );
+                const won = hasRelic(progress, i);
                 return (
                   <div className={won ? "collected" : ""} key={w.name}>
                     <Crest />
@@ -1063,9 +1105,17 @@ function App() {
             <div className="achievements">
               {[
                 [attempts > 0, "First spell"],
-                [progress.completedQuests.length > 0, "Trailblazer"],
+                [
+                  progress.completedQuests.length > 0 ||
+                    (progress.legacyCompletedQuests || []).length > 0,
+                  "Trailblazer",
+                ],
                 [mastered >= 10, "Memory keeper"],
-                [progress.completedQuests.length === 25, "Grand spellkeeper"],
+                [
+                  progress.completedQuests.length === 25 ||
+                    (progress.legacyCompletedQuests || []).length === 25,
+                  "Grand spellkeeper",
+                ],
                 [progress.claimedDays.length > 0, "Lantern keeper"],
               ].map(([won, title]) => (
                 <span className={won ? "earned" : ""} key={String(title)}>

@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
 import {
   words,
+  learningWords,
+  wordComplexity,
+  worldForWord,
+  hasRelic,
   quests,
   worlds,
   freshProgress,
@@ -20,7 +24,10 @@ describe("official curriculum", () => {
     expect(words.map((w) => w.id)).toEqual(
       Array.from({ length: 250 }, (_, i) => i + 1),
     );
-    expect(quests.flatMap((q) => q.words)).toEqual(words);
+    expect(quests.flatMap((q) => q.words)).toEqual(learningWords);
+    expect(
+      [...quests.flatMap((q) => q.words)].sort((a, b) => a.id - b.id),
+    ).toEqual(words);
     expect(worlds).toHaveLength(6);
     expect(quests).toHaveLength(25);
     expect(quests.filter((q) => q.boss)).toHaveLength(6);
@@ -90,5 +97,74 @@ describe("letter recognition fairness", () => {
     expect(parseLetters("B as in bravo E E", 0.9).letters.join("")).toBe("bee");
     expect(parseLetters("accident", 0.9).ambiguous).toBe(true);
     expect(parseLetters("bee pee", 0.2).ambiguous).toBe(true);
+  });
+});
+
+describe("complexity progression", () => {
+  it("increases deterministically without mutating the authoritative order", () => {
+    const scores = learningWords.map((w) => wordComplexity(w.word).score);
+    expect(scores).toEqual([...scores].sort((a, b) => a - b));
+    expect(learningWords[0].word).not.toBe(words[0].word);
+    expect(words[0].word).toBe("accident");
+    for (let i = 1; i < worlds.length; i++) {
+      const previous = quests
+          .filter((q) => q.world === i - 1)
+          .flatMap((q) => q.words),
+        current = quests.filter((q) => q.world === i).flatMap((q) => q.words);
+      expect(wordComplexity(previous.at(-1)!.word).score).toBeLessThanOrEqual(
+        wordComplexity(current[0].word).score,
+      );
+    }
+  });
+  it("ranks short irregular spellings above longer predictable words", () => {
+    expect(wordComplexity("rhythm").score).toBeGreaterThan(
+      wordComplexity("animal").score,
+    );
+    expect(wordComplexity("cough").score).toBeGreaterThan(
+      wordComplexity("potato").score,
+    );
+    expect(wordComplexity("cupboard").reasons).toContain(
+      "Silent p and less predictable letter sequence",
+    );
+  });
+  it("locates worlds by difficulty assignment rather than original official IDs", () => {
+    for (const q of quests)
+      for (const w of q.words) expect(worldForWord(w.id)).toBe(q.world);
+    expect(worldForWord(1)).not.toBe(0);
+  });
+  it("migrates legacy quests without losing XP, word history, days, or earned relics", () => {
+    const p = recordAnswer(freshProgress(), 1, "accident", 1000).progress;
+    const old = {
+      ...p,
+      curriculumVersion: undefined,
+      xp: 500,
+      completedQuests: ["0-0", "0-1", "0-2", "0-3", "0-4"],
+    };
+    const migrated = parseBackup(JSON.stringify(old));
+    expect(migrated.curriculumVersion).toBe(2);
+    expect(migrated.xp).toBe(500);
+    expect(migrated.records).toEqual(p.records);
+    expect(migrated.activeDays).toEqual(p.activeDays);
+    expect(migrated.claimedDays).toEqual(p.claimedDays);
+    expect(migrated.legacyCompletedQuests).toEqual(old.completedQuests);
+    expect(migrated.completedQuests).toEqual([]);
+    expect(hasRelic(migrated, 0)).toBe(true);
+    expect(completeQuest(migrated, "0-0").xp).toBe(500);
+    expect(parseBackup(JSON.stringify(migrated))).toEqual(migrated);
+  });
+  it("keeps all completions when the old curriculum was finished and rejects unknown curriculum versions", () => {
+    const p = {
+      ...freshProgress(),
+      curriculumVersion: undefined,
+      completedQuests: quests.map((q) => q.id),
+    };
+    expect(parseBackup(JSON.stringify(p)).completedQuests).toEqual(
+      quests.map((q) => q.id),
+    );
+    expect(() =>
+      parseBackup(
+        JSON.stringify({ ...freshProgress(), curriculumVersion: 99 }),
+      ),
+    ).toThrow();
   });
 });
