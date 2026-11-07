@@ -8,6 +8,7 @@ import {
   cone,
   crystal,
   tower,
+  castle,
 } from "./playground-scene";
 export type QuestSceneOptions = {
   world: number;
@@ -199,9 +200,11 @@ export function createQuestScene(
           new THREE.SphereGeometry(original.parameters.radius, 8, 6),
         );
       }
+      const transformed = source.clone().applyMatrix4(node.matrixWorld);
       const baked = geometry(
-        source.clone().applyMatrix4(node.matrixWorld).toNonIndexed(),
+        transformed.index ? transformed.toNonIndexed() : transformed,
       );
+      if (baked !== transformed) transformed.dispose();
       baked.deleteAttribute("uv");
       const common = mat(
         "#" + m.color.getHexString(),
@@ -334,7 +337,7 @@ export function createQuestScene(
         }
         g.add(prop);
       });
-    } else portal(g, "#f2d397");
+    } else if (!opts.boss) portal(g, "#f2d397");
     mergeIsland(g);
     g.position.copy(islandPosition(i));
     scene.add(g);
@@ -508,6 +511,174 @@ export function createQuestScene(
       scene.add(post);
       posts[i] = { lamp, material: lampMaterial, light, color };
     }
+  }
+  const guardian = new THREE.Group(),
+    shield: THREE.Mesh<THREE.TorusGeometry, THREE.MeshStandardMaterial>[] = [];
+  let cracked = 0;
+  function shieldState() {
+    container.dataset.sceneShield = String(opts.boss ? count - cracked : 0);
+  }
+  if (opts.boss) {
+    const keep = new THREE.Group();
+    if (world >= 3) castle(keep, world === 5);
+    else tower(keep, 0, 0, 2.4, palette[world][1], realmColors[world]);
+    keep.scale.setScalar(0.75);
+    mergeIsland(keep);
+    guardian.add(keep);
+    // The same shield-and-four-point-star silhouette as the DOM Crest, in original geometry.
+    const crest = new THREE.Shape();
+    crest.moveTo(0, 0.8);
+    crest.lineTo(0.62, 0.53);
+    crest.lineTo(0.62, -0.1);
+    crest.lineTo(0, -0.8);
+    crest.lineTo(-0.62, -0.1);
+    crest.lineTo(-0.62, 0.53);
+    crest.closePath();
+    add(
+      guardian,
+      new THREE.ShapeGeometry(crest),
+      mat("#e4c88e", true),
+      0,
+      1.55,
+      0.85,
+    );
+    const star = new THREE.Shape();
+    star.moveTo(0, 0.52);
+    star.lineTo(0.13, 0.12);
+    star.lineTo(0.46, 0);
+    star.lineTo(0.13, -0.12);
+    star.lineTo(0, -0.52);
+    star.lineTo(-0.13, -0.12);
+    star.lineTo(-0.46, 0);
+    star.lineTo(-0.13, 0.12);
+    star.closePath();
+    add(guardian, new THREE.ShapeGeometry(star), mat("#63528b"), 0, 1.55, 0.86);
+    for (let k = 0; k < count; k++) {
+      const material = new THREE.MeshStandardMaterial({
+        color: "#b9a5e6",
+        emissive: "#8274b8",
+        emissiveIntensity: 0.6,
+        transparent: true,
+      });
+      const segment = add(
+        guardian,
+        new THREE.TorusGeometry(
+          1.75,
+          0.105,
+          5,
+          8,
+          ((Math.PI * 2) / count) * 0.78,
+        ),
+        material,
+        0,
+        1.6,
+        1.05,
+      ) as THREE.Mesh<THREE.TorusGeometry, THREE.MeshStandardMaterial>;
+      segment.rotation.z = (k * Math.PI * 2) / count;
+      shield.push(segment);
+    }
+    guardian.position.copy(islandPosition(count));
+    scene.add(guardian);
+  }
+  shieldState();
+  async function crackShield(gap: number) {
+    if (!opts.boss || cracked >= count || disposed) return;
+    const segment = shield[cracked++];
+    shieldState();
+    if (motion && visible && !document.hidden) {
+      const start = bridgePoint(gap, 0.65).add(new THREE.Vector3(0, 0.5, 0)),
+        end = guardian.position.clone().add(new THREE.Vector3(0, 1.6, 1.05)),
+        middle = start
+          .clone()
+          .lerp(end, 0.5)
+          .add(new THREE.Vector3(0, 3, 0));
+      const geo = geometry(
+          new THREE.TubeGeometry(
+            new THREE.CatmullRomCurve3([start, middle, end]),
+            24,
+            0.045,
+            5,
+            false,
+          ),
+        ),
+        material = new THREE.MeshBasicMaterial({
+          color: "#ffe3a0",
+          transparent: true,
+        });
+      materials.add(material);
+      const bolt = new THREE.Mesh(geo, material);
+      scene.add(bolt);
+      await animate(220, (t) => {
+        material.opacity = Math.sin(Math.PI * t);
+      });
+      scene.remove(bolt);
+      geo.dispose();
+      geometries.delete(geo);
+      material.dispose();
+      materials.delete(material);
+    }
+    const from = segment.position.y;
+    await animate(600, (t) => {
+      segment.position.y = from - t * t * 2.4;
+      segment.rotation.x = t * 0.7;
+      segment.material.opacity = 1 - t;
+    });
+    segment.visible = false;
+  }
+  async function swayGuardian() {
+    if (!opts.boss) return;
+    await animate(
+      500,
+      (t) => {
+        guardian.rotation.z =
+          ((Math.sin(t * Math.PI * 4) * Math.PI) / 90) * (1 - t);
+      },
+      (t) => t,
+    );
+    guardian.rotation.z = 0;
+  }
+  async function shatterShield() {
+    if (!opts.boss || disposed) return;
+    shield.forEach((s) => {
+      s.visible = false;
+    });
+    cracked = count;
+    shieldState();
+    if (!motion || !visible || document.hidden) return;
+    const positions = new Float32Array(40 * 3),
+      origin = guardian.position.clone().add(new THREE.Vector3(0, 1.6, 0)),
+      geo = geometry(new THREE.BufferGeometry()),
+      material = new THREE.PointsMaterial({
+        color: "#ffdf9c",
+        size: 0.15,
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      });
+    materials.add(material);
+    geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    const burst = new THREE.Points(geo, material);
+    burst.position.copy(origin);
+    scene.add(burst);
+    await animate(
+      1000,
+      (t) => {
+        for (let k = 0; k < 40; k++) {
+          const a = k * 2.39996;
+          positions[k * 3] = Math.cos(a) * t * (2 + (k % 3));
+          positions[k * 3 + 1] = Math.sin(k * 7) * t * 2 + t * 1.4 - t * t;
+          positions[k * 3 + 2] = Math.sin(a) * t * (2 + (k % 3));
+        }
+        geo.attributes.position.needsUpdate = true;
+        material.opacity = 1 - t;
+      },
+      (t) => t,
+    );
+    scene.remove(burst);
+    geo.dispose();
+    geometries.delete(geo);
+    material.dispose();
+    materials.delete(material);
   }
   const hero = new THREE.Group(),
     body = new THREE.Group();
@@ -872,7 +1043,11 @@ export function createQuestScene(
       try {
         if (!result.correct) {
           await crumble(list);
-          if (disposed || result.retrySameGap) return;
+          if (disposed) return;
+          if (result.retrySameGap) {
+            await swayGuardian();
+            return;
+          }
           await blueBridge(gap, result.word, list);
           if (disposed) return;
           await crossGap(gap);
@@ -894,6 +1069,7 @@ export function createQuestScene(
         state.arrived = gap + 1;
         state.gold++;
         ignite(gap + 1);
+        await crackShield(gap);
       } finally {
         pending--;
         if (!disposed) {
@@ -1057,7 +1233,9 @@ export function createQuestScene(
     typed: syncTyped,
     resolve,
     finish: () => {
-      chain = chain.then(() => {
+      chain = chain.then(async () => {
+        if (disposed) return;
+        await shatterShield();
         if (disposed) return;
         state.phase = "finished";
         notify();

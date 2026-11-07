@@ -19,3 +19,7 @@ Incorrect stones fade and tumble in staggered lavender; the original procedural 
 ## 4 · Six worlds
 
 Each world now uses its existing playground palette and exported art helpers. Deterministic quest-seeded props occupy only the far side of the path; static geometry is merged by shared material per island, with lower-resolution sphere geometry for the tablet budget. The six light shapes follow the world objectives: lantern, crystal, summit beacon, candle window, ember brazier and crown jewel. Typed runes are world-tinted. Unit checks build all six worlds and verify the far-side placement and sub-25k triangle budget. The original playground helper bodies and appearance remain unchanged.
+
+## 5 · Guardian battles
+
+Boss destinations use the exported tower/castle art and the existing shield-and-star Crest silhouette, surrounded by one shield arc per word. Gold crossings send an arcing light bolt and drop/fade one arc. Misses crumble and gently sway the guardian without moving the hero, lighting a blue post or changing the shield. Victory clears the shield in a gold burst (no particles with reduced motion). New state-machine coverage checks retry, individual cracks and a complete victory; existing boss gameplay tests stay unchanged.

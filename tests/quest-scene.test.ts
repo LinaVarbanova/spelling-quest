@@ -239,3 +239,28 @@ describe("six themed worlds", () => {
     }
   });
 });
+
+describe("guardian battles", () => {
+  it("cracks one shield per correct word, preserves it on a retry and shatters at victory", async () => {
+    const { api, states, container } = fixture(false, 3, true);
+    expect(container.dataset.sceneShield).toBe("10");
+    api.typed("wrong");
+    await api.resolve({ correct: false, word: "body", retrySameGap: true });
+    expect(container.dataset.sceneShield).toBe("10");
+    expect(states.at(-1)?.arrived).toBe(0);
+    await api.resolve({ correct: true, word: "body" });
+    expect(container.dataset.sceneShield).toBe("9");
+    expect(states.at(-1)?.arrived).toBe(1);
+    for (let i = 1; i < 10; i++)
+      await api.resolve({ correct: true, word: "body" });
+    await api.finish();
+    expect(container.dataset.sceneShield).toBe("0");
+    expect(states.at(-1)).toMatchObject({
+      arrived: 10,
+      gold: 10,
+      blue: 0,
+      phase: "finished",
+    });
+    api.dispose();
+  });
+});
