@@ -48,3 +48,23 @@ test("context loss releases the quest scene and restores the banner", async ({
   await expect(page.locator(".battle-art")).toBeVisible();
   await expect(page.getByLabel("Your spelling", { exact: true })).toBeEnabled();
 });
+
+test("a correct spell crosses while Next stays immediately usable", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Continue your journey" }).click();
+  const scene = page.locator(".quest-stage");
+  await expect(scene).toHaveAttribute("data-scene-phase", "ready");
+  await page.getByLabel("Your spelling", { exact: true }).fill("body");
+  await page.getByRole("button", { name: "Cast spell" }).click();
+  await expect(page.getByRole("button", { name: "Next word" })).toBeEnabled({
+    timeout: 300,
+  });
+  await expect(scene).toHaveAttribute("data-scene-gold", "1", {
+    timeout: 6000,
+  });
+  await expect(scene).toHaveAttribute("data-scene-arrived", "1", {
+    timeout: 6000,
+  });
+});

@@ -184,6 +184,46 @@ export function createQuestScene(
     const merged = mergeGeometries(pieces, true);
     if (merged) group.add(new THREE.Mesh(geometry(merged), used));
   }
+  const tweens = new Set<{
+    start: number;
+    duration: number;
+    update: (t: number) => void;
+    done: () => void;
+    ease: (t: number) => number;
+  }>();
+  const ease = (t: number) =>
+    t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  const backOut = (t: number) =>
+    1 + 2.70158 * Math.pow(t - 1, 3) + 1.70158 * Math.pow(t - 1, 2);
+  const animate = (
+    duration: number,
+    update: (t: number) => void,
+    curve = ease,
+  ): Promise<void> => {
+    if (disposed) return Promise.resolve();
+    if (!motion || !visible || document.hidden || duration === 0) {
+      update(1);
+      requestRender();
+      return Promise.resolve();
+    }
+    return new Promise((done) => {
+      tweens.add({ start: time * 1000, duration, update, done, ease: curve });
+      requestRender();
+    });
+  };
+  const flush = () => {
+    const list = [...tweens];
+    tweens.clear();
+    for (const tween of list) {
+      if (!disposed) tween.update(1);
+      tween.done();
+    }
+  };
+  const posts: {
+    lamp: THREE.Mesh;
+    material: THREE.MeshStandardMaterial;
+    light: THREE.PointLight;
+  }[] = [];
   const islands: THREE.Group[] = [];
   for (let i = 0; i <= count; i++) {
     const g = new THREE.Group();
@@ -205,6 +245,39 @@ export function createQuestScene(
     g.position.copy(islandPosition(i));
     scene.add(g);
     islands.push(g);
+    if (i > 0) {
+      const post = new THREE.Group(),
+        side = sideOf(directionOf(i - 1));
+      post.position.copy(islandPosition(i)).addScaledVector(side, 1.15);
+      post.position.y += 0.25;
+      add(
+        post,
+        new THREE.CylinderGeometry(0.045, 0.06, 1.5, 6),
+        mat("#655576"),
+        0,
+        0.75,
+      );
+      const lampMaterial = new THREE.MeshStandardMaterial({
+        color: "#756b8b",
+        emissive: "#ffd89c",
+        emissiveIntensity: 0,
+        roughness: 0.65,
+      });
+      materials.add(lampMaterial);
+      const lamp = add(
+        post,
+        new THREE.OctahedronGeometry(0.2),
+        lampMaterial,
+        0,
+        1.7,
+      );
+      const light = new THREE.PointLight("#ffd89c", 0, 7, 2);
+      light.position.set(0, 1.7, 0);
+      light.visible = false;
+      post.add(light);
+      scene.add(post);
+      posts[i] = { lamp, material: lampMaterial, light };
+    }
   }
   const hero = new THREE.Group(),
     body = new THREE.Group();
@@ -279,20 +352,241 @@ export function createQuestScene(
   hero.position.copy(standAt(0));
   hero.rotation.y = Math.atan2(directionOf(0).x, directionOf(0).z);
   scene.add(hero);
+  type Stone = {
+    mesh: THREE.Mesh<THREE.BoxGeometry, THREE.MeshStandardMaterial>;
+    sprite: THREE.Sprite;
+    letter: string;
+  };
+  const runeGeometry = geometry(new THREE.BoxGeometry(0.42, 0.16, 0.95)),
+    letterTextures = new Map<string, THREE.CanvasTexture>();
+  const stones = Array.from({ length: count }, () => [] as Stone[]);
+  function letterTexture(letter: string, color: string) {
+    const key = letter + color;
+    if (letterTextures.has(key)) return letterTextures.get(key)!;
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 128;
+    const context = canvas.getContext("2d");
+    if (!context) throw Error("Rune rendering unavailable");
+    context.clearRect(0, 0, 128, 128);
+    context.font = "bold 96px Georgia, serif";
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    context.fillStyle = color;
+    context.fillText(letter.toUpperCase(), 64, 69);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    letterTextures.set(key, texture);
+    textures.add(texture);
+    return texture;
+  }
+  function makeStone(gap: number, letter: string, index: number) {
+    const m = new THREE.MeshStandardMaterial({
+      color: "#a194d6",
+      emissive: "#46356e",
+      emissiveIntensity: 0.55,
+      roughness: 0.6,
+      transparent: true,
+    });
+    materials.add(m);
+    const tile = new THREE.Mesh(runeGeometry, m);
+    const spriteMaterial = new THREE.SpriteMaterial({
+      map: letterTexture(letter, "#fff0d2"),
+      transparent: true,
+      depthWrite: false,
+    });
+    materials.add(spriteMaterial);
+    const sprite = new THREE.Sprite(spriteMaterial);
+    sprite.scale.set(0.66, 0.66, 1);
+    sprite.position.y = 0.5;
+    tile.add(sprite);
+    const target = typedSlot(gap, index);
+    tile.position.copy(target);
+    tile.rotation.y = Math.atan2(directionOf(gap).x, directionOf(gap).z);
+    scene.add(tile);
+    const stone = { mesh: tile, sprite, letter };
+    void animate(
+      340,
+      (t) => {
+        tile.position.y = target.y - 3.2 * (1 - t);
+        m.opacity = 0.3 + 0.7 * Math.min(1, t);
+      },
+      backOut,
+    );
+    return stone;
+  }
+  function removeStone(stone: Stone) {
+    scene.remove(stone.mesh);
+    stone.mesh.material.dispose();
+    materials.delete(stone.mesh.material);
+    const sm = stone.sprite.material;
+    sm.dispose();
+    materials.delete(sm);
+  }
+  function syncTyped(text: string) {
+    if (disposed || state.gap >= count) return;
+    const letters = text
+        .toLowerCase()
+        .replace(/[^a-z]/g, "")
+        .slice(0, 14),
+      list = stones[state.gap];
+    while (list.length > letters.length) {
+      const stone = list.pop()!,
+        y = stone.mesh.position.y;
+      void animate(200, (t) => {
+        stone.mesh.position.y = y + t * 0.2;
+        stone.mesh.material.opacity = 1 - t;
+        stone.sprite.material.opacity = 1 - t;
+      }).then(() => removeStone(stone));
+    }
+    list.forEach((stone, i) => {
+      if (stone.letter !== letters[i]) {
+        stone.letter = letters[i];
+        stone.sprite.material.map = letterTexture(letters[i], "#fff0d2");
+        stone.sprite.material.needsUpdate = true;
+      }
+    });
+    for (let i = list.length; i < letters.length; i++)
+      list.push(makeStone(state.gap, letters[i], i));
+    requestRender();
+  }
+  const stretch = (gap: number, list: Stone[]) =>
+    Promise.all(
+      list.map((stone, i) => {
+        const from = stone.mesh.position.clone(),
+          to = bridgePoint(gap, (i + 0.5) / list.length).add(
+            new THREE.Vector3(0, 0.08, 0),
+          );
+        return animate(380, (t) =>
+          stone.mesh.position.lerpVectors(from, to, t),
+        );
+      }),
+    );
+  let chain = Promise.resolve(),
+    pending = 0;
+  async function crossGap(gap: number) {
+    const points = [hero.position.clone(), bridgePoint(gap, 0)];
+    for (let i = 0; i < 12; i++)
+      points.push(
+        bridgePoint(gap, (i + 0.5) / 12).add(new THREE.Vector3(0, 0.16, 0)),
+      );
+    points.push(bridgePoint(gap, 1), standAt(gap + 1));
+    const lengths = points.slice(1).map((p, i) => p.distanceTo(points[i])),
+      total = lengths.reduce((a, b) => a + b, 0);
+    state.walking = true;
+    notify();
+    await animate(
+      (total / queueSpeed(pending)) * 1000,
+      (t) => {
+        let distance = t * total,
+          index = 0;
+        while (index < lengths.length - 1 && distance > lengths[index])
+          distance -= lengths[index++];
+        hero.position.lerpVectors(
+          points[index],
+          points[index + 1],
+          Math.min(1, distance / (lengths[index] || 1)),
+        );
+        const d = points[index + 1].clone().sub(points[index]);
+        hero.rotation.y = Math.atan2(d.x, d.z);
+      },
+      (t) => t,
+    );
+    state.walking = false;
+    body.position.y = 0;
+    body.rotation.z = 0;
+  }
+  function ignite(index: number) {
+    const post = posts[index];
+    if (!post) return;
+    post.material.color.set("#ffe8b4");
+    post.light.visible = true;
+    void animate(700, (t) => {
+      post.material.emissiveIntensity = t * 1.4;
+      post.light.intensity = t * 1.6;
+    });
+    for (let i = 1; i < posts.length; i++)
+      if (posts[i]) posts[i].light.visible = Math.abs(i - index) < 2;
+    const from = hemi.intensity,
+      fog = scene.fog as THREE.FogExp2,
+      startFog = fog.density;
+    void animate(1200, (t) => {
+      hemi.intensity = THREE.MathUtils.lerp(from, 2.6 + state.gold * 0.11, t);
+      fog.density = THREE.MathUtils.lerp(
+        startFog,
+        0.03 - Math.min(1, state.gold / count) * 0.012,
+        t,
+      );
+    });
+  }
+  function resolve(result: QuestResolution) {
+    if (disposed || state.gap >= count) return Promise.resolve();
+    const gap = state.gap;
+    if (result.correct) syncTyped(result.word);
+    const list = stones[gap];
+    stones[gap] = [];
+    if (!result.retrySameGap) state.gap++;
+    pending++;
+    notify();
+    chain = chain.then(async () => {
+      if (disposed) return;
+      state.phase = "crossing";
+      notify();
+      try {
+        if (!result.correct) {
+          if (!result.retrySameGap) {
+            state.arrived = gap + 1;
+            hero.position.copy(standAt(gap + 1));
+          }
+          return;
+        }
+        list.forEach((stone) => {
+          stone.mesh.material.color.set("#f0cf88");
+          stone.mesh.material.emissive.set("#996b29");
+          stone.sprite.material.map = letterTexture(stone.letter, "#fff2cf");
+        });
+        await stretch(gap, list);
+        if (disposed) return;
+        await crossGap(gap);
+        if (disposed) return;
+        state.arrived = gap + 1;
+        state.gold++;
+        ignite(gap + 1);
+      } finally {
+        pending--;
+        if (!disposed) {
+          state.phase = "ready";
+          notify();
+          requestRender();
+        }
+      }
+    });
+    return chain;
+  }
   let narrow = false;
   function updateCamera(dt: number) {
     const gap = Math.min(state.arrived, count - 1),
       direction = directionOf(gap),
-      target = bridgePoint(gap, 0.36).add(new THREE.Vector3(0, 0.5, 0));
+      target = state.walking
+        ? hero.position
+            .clone()
+            .addScaledVector(direction, 3)
+            .add(new THREE.Vector3(0, 0.8, 0))
+        : bridgePoint(gap, 0.36).add(new THREE.Vector3(0, 0.5, 0));
     const side = sideOf(direction).applyAxisAngle(
       new THREE.Vector3(0, 1, 0),
       yaw,
     );
-    const wanted = target
-      .clone()
-      .addScaledVector(side, narrow ? -12.5 : -10)
-      .add(new THREE.Vector3(0, 3.4, 0))
-      .addScaledVector(direction, -2.2);
+    const wanted = state.walking
+      ? hero.position
+          .clone()
+          .addScaledVector(direction, -6.8)
+          .add(new THREE.Vector3(0, 3.9, 0))
+          .addScaledVector(side, -1.6)
+      : target
+          .clone()
+          .addScaledVector(side, narrow ? -12.5 : -10)
+          .add(new THREE.Vector3(0, 3.4, 0))
+          .addScaledVector(direction, -2.2);
     camera.position.lerp(wanted, motion ? 1 - Math.exp(-7 * dt) : 1);
     camera.lookAt(target);
     if (!dragging) yaw *= motion ? Math.exp(-3 * dt) : 0;
@@ -318,10 +612,21 @@ export function createQuestScene(
     const dt = Math.min(0.1, (now - last || 33) / 1000);
     last = now;
     time += dt;
-    if (motion) {
-      body.position.y = Math.sin(time * 2) * 0.02;
-      updateCamera(dt);
+    for (const tween of [...tweens]) {
+      const t = Math.min(1, (time * 1000 - tween.start) / tween.duration);
+      tween.update(tween.ease(t));
+      if (t >= 1) {
+        tweens.delete(tween);
+        tween.done();
+      }
     }
+    if (motion) {
+      body.position.y = state.walking
+        ? Math.abs(Math.sin(time * 9)) * 0.09
+        : Math.sin(time * 2) * 0.02;
+      body.rotation.z = state.walking ? Math.sin(time * 9) * 0.06 : 0;
+    }
+    updateCamera(dt);
     renderer.render(scene, camera);
     notify();
     frame = motion ? requestAnimationFrame(render) : 0;
@@ -342,6 +647,7 @@ export function createQuestScene(
       if (!visible) {
         cancelAnimationFrame(frame);
         frame = 0;
+        flush();
       } else {
         last = 0;
         requestRender();
@@ -354,6 +660,7 @@ export function createQuestScene(
     if (document.hidden) {
       cancelAnimationFrame(frame);
       frame = 0;
+      flush();
     } else {
       last = 0;
       requestRender();
@@ -392,15 +699,21 @@ export function createQuestScene(
   resize();
   notify();
   return {
-    typed: () => {},
-    resolve: async () => {},
-    finish: async () => {
-      state.phase = "finished";
-      notify();
-      requestRender();
+    typed: syncTyped,
+    resolve,
+    finish: () => {
+      chain = chain.then(() => {
+        if (disposed) return;
+        state.phase = "finished";
+        notify();
+        updateCamera(1);
+        requestRender();
+      });
+      return chain;
     },
     setMotion: (on) => {
       motion = on;
+      if (!on) flush();
       cancelAnimationFrame(frame);
       frame = 0;
       body.position.y = 0;
@@ -410,6 +723,7 @@ export function createQuestScene(
     dispose: () => {
       if (disposed) return;
       disposed = true;
+      flush();
       cancelAnimationFrame(frame);
       resizeObserver.disconnect();
       intersection.disconnect();

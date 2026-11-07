@@ -628,6 +628,21 @@ function App() {
                 title={questTitle}
                 objective={questObjective}
                 fallback={questBanner}
+                answer={answer}
+                resolution={
+                  result
+                    ? {
+                        id: `${word.id}:${progress.records[word.id]?.attempts || 0}`,
+                        correct: result.correct,
+                        word: word.word,
+                        retrySameGap: active.boss && !result.correct,
+                        last:
+                          round === active.words.length - 1 &&
+                          lives > 0 &&
+                          (!active.boss || result.correct),
+                      }
+                    : null
+                }
               />
             </Suspense>
             <div className="quest-top">

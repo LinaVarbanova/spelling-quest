@@ -135,3 +135,38 @@ describe("Sky Trail scene skeleton", () => {
     expect(calls.render).toHaveBeenCalledTimes(painted);
   });
 });
+
+describe("rune bridges and queue", () => {
+  it("uses fixed slot positions without taking a target word length", async () => {
+    const { typedSlot, queueSpeed } = await import("../src/quest-scene");
+    expect(typedSlot(0, 0).distanceTo(typedSlot(0, 1))).toBeGreaterThan(0.4);
+    expect(typedSlot(0, 0)).toEqual(typedSlot(0, 0));
+    expect(queueSpeed(1)).toBe(4.2);
+    expect(queueSpeed(3)).toBeCloseTo(10.92);
+  });
+  it("queues correct crossings and reserves the next gap immediately", async () => {
+    const { api, states } = fixture();
+    api.typed("body");
+    const first = api.resolve({ correct: true, word: "body" });
+    expect(states.at(-1)?.gap).toBe(1);
+    api.typed("clap");
+    const second = api.resolve({ correct: true, word: "clap" });
+    await Promise.all([first, second]);
+    expect(states.at(-1)).toMatchObject({
+      arrived: 2,
+      gap: 2,
+      gold: 2,
+      blue: 0,
+      walking: false,
+    });
+    api.dispose();
+  });
+  it("settles queued work on disposal instead of leaving promises waiting for frames", async () => {
+    const { api } = fixture(true);
+    const crossing = api.resolve({ correct: true, word: "body" });
+    await vi.advanceTimersByTimeAsync(100);
+    api.dispose();
+    await crossing;
+    expect(calls.dispose).toHaveBeenCalledOnce();
+  });
+});

@@ -7,3 +7,7 @@ Backup: branch `backup/pre-sky-trail-2026-11-07` and annotated tag `pre-sky-trai
 ## 1 · Scene skeleton
 
 Lazy quest scene with forest island chain, original procedural hero, side-on stage camera, drag, reduced-motion still rendering, visibility suspension and full resource disposal. The existing banner remains the loading/error/context-loss fallback. The homepage playground appearance and all gameplay state are unchanged. New unit tests stub only the renderer; new browser checks cover reduced motion and fallback. No bridge/gameplay animation is added in this milestone.
+
+## 2 · The bridge
+
+Child-entered letters create cached rune sprites at fixed slots (not target-length spacing). Correct answers queue gold bridges, a 4.2 units/s walk, warm lanterns and gradual world brightening. Logical gaps are reserved immediately; Next and following input never wait for animation. Hidden/offscreen scenes stop rendering and fast-forward presentation work so a queue cannot deadlock while the child uses the spellbook below it. Reduced motion resolves presentation instantly. Disposal settles pending animation promises. Scoring remains exclusively in the unchanged game logic.

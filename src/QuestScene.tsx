@@ -3,12 +3,15 @@ import {
   createQuestScene,
   type QuestSceneAPI,
   type QuestSceneOptions,
+  type QuestResolution,
 } from "./quest-scene";
 export type QuestSceneProps = Omit<QuestSceneOptions, "motion"> & {
   reduced: boolean;
   title: string;
   objective: string;
   fallback: ReactNode;
+  answer: string;
+  resolution: (QuestResolution & { id: string; last: boolean }) | null;
 };
 export default function QuestScene({
   world,
@@ -19,10 +22,14 @@ export default function QuestScene({
   title,
   objective,
   fallback,
+  answer,
+  resolution,
 }: QuestSceneProps) {
   const host = useRef<HTMLDivElement>(null),
     api = useRef<QuestSceneAPI | null>(null);
   const [unavailable, setUnavailable] = useState(false);
+  const resolved = useRef(new Set<string>()),
+    finished = useRef(false);
   useEffect(() => {
     const container = host.current;
     if (!container) return;
@@ -37,6 +44,8 @@ export default function QuestScene({
       setUnavailable(true);
     };
     container.addEventListener("quest-scene-unavailable", lost);
+    resolved.current.clear();
+    finished.current = false;
     try {
       api.current = createQuestScene(
         container,
@@ -64,6 +73,31 @@ export default function QuestScene({
       api.current = null;
     };
   }, [world, boss, wordCount, seed, reduced]);
+  useEffect(() => {
+    if (!resolution) {
+      try {
+        api.current?.typed(answer);
+      } catch {
+        api.current?.dispose();
+        api.current = null;
+        setUnavailable(true);
+      }
+    }
+  }, [answer, resolution]);
+  useEffect(() => {
+    if (!resolution || resolved.current.has(resolution.id) || !api.current)
+      return;
+    resolved.current.add(resolution.id);
+    void api.current.resolve(resolution).catch(() => {
+      api.current?.dispose();
+      api.current = null;
+      setUnavailable(true);
+    });
+    if (resolution.last && !finished.current) {
+      finished.current = true;
+      void api.current.finish();
+    }
+  }, [resolution]);
   if (unavailable) return <>{fallback}</>;
   return (
     <section className="quest-stage-shell" aria-label="Sky Trail quest">
