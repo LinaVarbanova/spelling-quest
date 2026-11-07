@@ -179,6 +179,11 @@ export class BrowserSpellingRecognizer implements SpellingRecognizer {
           : undefined,
     };
   }
+  private restartTimer?: ReturnType<typeof setTimeout>;
+  private finishTimer?: ReturnType<typeof setTimeout>;
+  private capturing = false;
+  private finishCapture?: () => void;
+
   start(
     local: boolean,
     locale: string,
@@ -186,82 +191,174 @@ export class BrowserSpellingRecognizer implements SpellingRecognizer {
     onError: (m: string) => void,
     onEnd: () => void,
   ) {
+    this.stop();
     const cap = this.capability(),
       C = constructor();
     if (!cap.supported || !C) {
+      this.status = "error";
       onError(cap.reason || "Recognition unavailable");
+      onEnd();
       return;
     }
     if (local && !cap.local) {
+      this.status = "error";
       onError(
         "On-device recognition is not supported in this browser. Nothing was uploaded.",
       );
+      onEnd();
       return;
     }
-    this.stop();
-    const r = new C();
-    this.recognition = r;
-    r.lang = locale;
-    r.continuous = false;
-    r.interimResults = false;
-    if (local || "processLocally" in r) r.processLocally = local;
-    r.onresult = (e) => {
-      let text = "";
-      let confidence = 1;
-      for (let i = 0; i < e.results.length; i++) {
-        if (e.results[i].isFinal) {
-          text += " " + e.results[i][0].transcript;
-          confidence = Math.min(confidence, e.results[i][0].confidence);
+    this.capturing = true;
+    this.status = "listening";
+    const committed: { text: string; confidence: number }[] = [];
+    let session: { text: string; confidence: number }[] = [];
+    let ended = false,
+      rapidEnds = 0;
+    const publish = () => {
+      const parts = [...committed, ...session].filter((p) => p.text.trim());
+      if (parts.length)
+        onCandidate(
+          parseLetters(
+            parts.map((p) => p.text).join(" "),
+            Math.min(...parts.map((p) => p.confidence)),
+          ),
+        );
+    };
+    const commitSession = () => {
+      committed.push(...session);
+      session = [];
+    };
+    const complete = (failed = false) => {
+      if (ended) return;
+      ended = true;
+      this.capturing = false;
+      clearTimeout(this.restartTimer);
+      clearTimeout(this.finishTimer);
+      publish();
+      this.status = failed ? "error" : "confirmation";
+      const r = this.recognition;
+      this.recognition = undefined;
+      if (r) {
+        r.onresult = null;
+        r.onerror = null;
+        r.onend = null;
+        try {
+          r.abort();
+        } catch {
+          /* Already ended. */
         }
       }
-      this.status = "confirmation";
-      onCandidate(parseLetters(text.trim(), confidence));
+      this.finishCapture = undefined;
+      onEnd();
     };
-    r.onerror = (e) => {
-      this.status = "error";
-      const messages: Record<string, string> = {
-        "not-allowed":
-          "Microphone permission was denied. Enable it in browser settings and retry.",
-        "audio-capture": "No microphone found. Check your device input.",
-        "no-speech": "No speech detected. Retry and say one letter at a time.",
-        network:
-          "Recognition needs a network connection. Your attempt has not been scored.",
-        "language-not-supported":
-          "The on-device English model is missing or unsupported. Install a supported language pack in your browser or choose browser online recognition explicitly.",
-        "service-not-allowed":
-          "This browser’s recognition service is unavailable.",
+    const beginSession = () => {
+      if (!this.capturing || ended) return;
+      const r = new C();
+      this.recognition = r;
+      const started = Date.now();
+      r.lang = locale;
+      r.continuous = true;
+      r.interimResults = true;
+      if (local || "processLocally" in r) r.processLocally = local;
+      r.onresult = (e) => {
+        if (this.recognition !== r || ended) return;
+        // Results are a cumulative snapshot within this browser session, not new letters to append each time.
+        session = Array.from(e.results, (result) => ({
+          text: result[0].transcript,
+          confidence: result.isFinal ? result[0].confidence : 0.3,
+        }));
+        publish();
       };
-      onError(
-        messages[e.error] ||
-          `Recognition stopped (${e.error}). Retry; no score was recorded.`,
-      );
+      r.onerror = (e) => {
+        if (this.recognition !== r || ended) return;
+        // Silence is normal when a child is thinking. The ensuing end event restarts capture.
+        if (e.error === "no-speech") return;
+        if (e.error === "aborted" && !this.capturing) return;
+        const messages: Record<string, string> = {
+          "not-allowed":
+            "Microphone permission was denied. Enable it in browser settings and retry.",
+          "audio-capture": "No microphone found. Check your device input.",
+          network:
+            "The browser speech service lost its connection. Your letters are kept; no answer has been scored.",
+          "language-not-supported":
+            "This English recognition language is unavailable in the browser service.",
+          "service-not-allowed":
+            "This browser’s recognition service is unavailable.",
+        };
+        onError(
+          messages[e.error] ||
+            `Recording stopped (${e.error}). Your letters are kept; nothing was scored.`,
+        );
+        complete(true);
+      };
+      r.onend = () => {
+        if (this.recognition !== r || ended) return;
+        this.recognition = undefined;
+        commitSession();
+        publish();
+        if (!this.capturing) {
+          complete();
+          return;
+        }
+        // Browsers can end continuous sessions on silence or service limits. Keep the user-controlled recording open.
+        rapidEnds = Date.now() - started < 500 ? rapidEnds + 1 : 0;
+        if (rapidEnds >= 3) {
+          onError(
+            "The browser could not keep its microphone session open. Your letters are kept. Press Start recording to retry.",
+          );
+          complete(true);
+          return;
+        }
+        this.restartTimer = setTimeout(beginSession, 350);
+      };
+      try {
+        r.start();
+      } catch {
+        onError(
+          "Could not start the microphone. Your letters are kept. Check permissions and retry.",
+        );
+        complete(true);
+      }
     };
-    r.onend = () => {
-      if (this.status === "listening") this.status = "idle";
-      onEnd();
+    this.finishCapture = () => {
+      if (ended) return;
+      this.capturing = false;
+      clearTimeout(this.restartTimer);
+      const r = this.recognition;
+      if (!r) {
+        complete();
+        return;
+      }
+      // Allow the browser's final letters to arrive after Stop before enabling scoring.
+      this.finishTimer = setTimeout(() => complete(), 4000);
+      try {
+        r.stop();
+      } catch {
+        complete();
+      }
     };
-    this.status = "listening";
-    try {
-      r.start();
-    } catch {
-      this.status = "error";
-      onError(
-        "Could not start the microphone. Stop other recording apps and retry.",
-      );
-      onEnd();
-    }
+    beginSession();
   }
   stop() {
-    if (this.recognition) {
-      this.recognition.onresult = null;
-      this.recognition.onerror = null;
-      this.recognition.onend = null;
-      this.recognition.abort();
-      this.recognition = undefined;
+    this.capturing = false;
+    clearTimeout(this.restartTimer);
+    clearTimeout(this.finishTimer);
+    this.finishCapture = undefined;
+    const r = this.recognition;
+    this.recognition = undefined;
+    if (r) {
+      r.onresult = null;
+      r.onerror = null;
+      r.onend = null;
+      try {
+        r.abort();
+      } catch {
+        /* Already ended. */
+      }
     }
     this.status = "idle";
   }
   finish() {
-    this.recognition?.stop();
+    this.finishCapture?.();
   }
 }

@@ -53,6 +53,7 @@ function App() {
     [translation, setTranslation] = useState(false),
     [mode, setMode] = useState<Mode>("typed"),
     [listening, setListening] = useState(false),
+    [finishing, setFinishing] = useState(false),
     [candidate, setCandidate] = useState<Candidate | null>(null),
     [micError, setMicError] = useState(""),
     [search, setSearch] = useState(""),
@@ -143,6 +144,7 @@ function App() {
     recognizer.stop();
     speaker.stop();
     setListening(false);
+    setFinishing(false);
   }
   function go(p: string) {
     stop();
@@ -170,6 +172,7 @@ function App() {
   function speak(text: string, slow = false) {
     recognizer.stop();
     setListening(false);
+    setFinishing(false);
     speaker.speak(
       text,
       { ...settings, rate: slow ? 0.65 : settings.rate },
@@ -242,6 +245,7 @@ function App() {
     setCandidate(null);
     setAnswer("");
     setMicError("");
+    setFinishing(false);
     setListening(true);
     recognizer.start(
       false,
@@ -249,13 +253,15 @@ function App() {
       (c) => {
         setCandidate(c);
         setAnswer(c.letters.join(""));
-        setListening(false);
       },
       (m) => {
         setMicError(m);
         setListening(false);
       },
-      () => setListening(false),
+      () => {
+        setListening(false);
+        setFinishing(false);
+      },
     );
   }
   function exportBackup() {
@@ -689,7 +695,9 @@ function App() {
                 <section className="microphone" aria-label="Spoken spelling">
                   <p>
                     Say individual letters with a small pause: “A … B … C”. “B
-                    as in bravo” is also supported. Always check the result.
+                    as in bravo” is also supported. Take your time; pauses are
+                    fine. Press Stop recording when you have finished all the
+                    letters.
                   </p>
                   <p className="small">
                     Browser speech service · microphone audio may be processed
@@ -699,18 +707,23 @@ function App() {
                   {!cap.supported && <p role="status">{cap.reason}</p>}
                   <div className="audio-controls">
                     <button
-                      className={"mic-button " + (listening ? "recording" : "")}
-                      disabled={!cap.supported || saving}
-                      onClick={
-                        listening
-                          ? () => {
-                              recognizer.finish();
-                              setListening(false);
-                            }
-                          : mic
+                      className="mic-button"
+                      disabled={
+                        !cap.supported || saving || listening || finishing
                       }
+                      onClick={mic}
                     >
-                      {listening ? "Stop & transcribe" : "Start microphone"}
+                      Start recording
+                    </button>
+                    <button
+                      className={"mic-button " + (listening ? "recording" : "")}
+                      disabled={!listening || finishing}
+                      onClick={() => {
+                        setFinishing(true);
+                        recognizer.finish();
+                      }}
+                    >
+                      Stop recording
                     </button>
                     <button
                       onClick={() => {
@@ -723,11 +736,13 @@ function App() {
                     </button>
                   </div>
                   <p className="small" role="status">
-                    {listening
-                      ? "Microphone listening… say your letters, then stop."
-                      : candidate
-                        ? "Transcription ready. Check every letter before scoring."
-                        : "Microphone off. Nothing is scored until you confirm."}
+                    {finishing
+                      ? "Finishing recording… waiting for the final letters."
+                      : listening
+                        ? "Recording letters… take your time. Press Stop recording when you finish."
+                        : candidate
+                          ? "Transcription ready. Check every letter before scoring."
+                          : "Microphone off. Nothing is scored until you confirm."}
                   </p>
                   {micError && (
                     <p className="error" role="alert">
@@ -764,7 +779,11 @@ function App() {
                   onChange={(e) => {
                     setAnswer(e.target.value);
                   }}
-                  disabled={!!result || (mode === "spoken" && !candidate)}
+                  disabled={
+                    !!result ||
+                    (mode === "spoken" &&
+                      (!candidate || listening || finishing))
+                  }
                   autoComplete="off"
                   autoCorrect="off"
                   autoCapitalize="none"
@@ -782,6 +801,7 @@ function App() {
                       !answer.trim() ||
                       saving ||
                       listening ||
+                      finishing ||
                       (mode === "spoken" && !candidate)
                     }
                   >

@@ -56,7 +56,7 @@ test("all words searchable; tablet layout fits; unsupported speech is explicit",
     .getByRole("button", { name: "Listen & Spell Aloud", exact: true })
     .click();
   await expect(
-    page.getByRole("button", { name: "Start microphone" }),
+    page.getByRole("button", { name: "Start recording" }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Confirm letters & cast spell" }),
@@ -97,10 +97,11 @@ test("spoken candidate must be confirmed; recognition errors do not score", asyn
             ],
             resultIndex: 0,
           });
-          this.onend?.();
         }, 30);
       }
-      stop() {}
+      stop() {
+        setTimeout(() => this.onend?.(), 30);
+      }
       abort() {}
     }
     Object.defineProperty(window, "SpeechRecognition", {
@@ -112,7 +113,7 @@ test("spoken candidate must be confirmed; recognition errors do not score", asyn
   await page
     .getByRole("button", { name: "Listen & Spell Aloud", exact: true })
     .click();
-  await page.getByRole("button", { name: "Start microphone" }).click();
+  await page.getByRole("button", { name: "Start recording" }).click();
   await expect(page.getByLabel("Detected letters")).toContainText("A");
   await expect(page.locator("html")).toHaveAttribute(
     "data-recognition-local",
@@ -120,6 +121,12 @@ test("spoken candidate must be confirmed; recognition errors do not score", asyn
   );
   await expect(page.locator(".xp")).toContainText("0 XP");
   await expect(page.getByRole("checkbox")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Confirm letters & cast spell" }),
+  ).toBeDisabled();
+  await page
+    .getByRole("button", { name: "Stop recording", exact: true })
+    .click();
   await page
     .getByRole("button", { name: "Confirm letters & cast spell" })
     .click();
@@ -148,7 +155,7 @@ test("mistakes consume lives; microphone denial never scores", async ({
   await page
     .getByRole("button", { name: "Listen & Spell Aloud", exact: true })
     .click();
-  await page.getByRole("button", { name: "Start microphone" }).click();
+  await page.getByRole("button", { name: "Start recording" }).click();
   await expect(page.getByRole("alert")).toContainText("permission was denied");
   await expect(page.locator(".xp")).toContainText("0 XP");
   await page
@@ -257,4 +264,94 @@ test("import, boss retry, relic reward and export are playable", async ({
   expect((await download).suggestedFilename()).toBe(
     "spelling-quest-backup.json",
   );
+});
+
+test("paused spelling resumes after a browser session ends and Stop collects the final letter", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const instances: PausedRecognition[] = [];
+    let starts = 0;
+    class PausedRecognition {
+      text = "";
+      onresult: ((e: unknown) => void) | null = null;
+      onerror: ((e: unknown) => void) | null = null;
+      onend: (() => void) | null = null;
+      constructor() {
+        instances.push(this);
+      }
+      start() {
+        document.documentElement.dataset.recordingStarts = String(++starts);
+      }
+      emit(text: string) {
+        this.text = text;
+        this.onresult?.({
+          results: [
+            { isFinal: true, 0: { transcript: text, confidence: 0.95 } },
+          ],
+          resultIndex: 0,
+        });
+      }
+      stop() {
+        this.emit(this.text + " t");
+        this.onend?.();
+      }
+      abort() {}
+    }
+    Object.defineProperty(window, "SpeechRecognition", {
+      value: PausedRecognition,
+    });
+    Object.defineProperty(window, "recordingTest", {
+      value: (text: string, end = false) => {
+        if (text) instances.at(-1)?.emit(text);
+        if (end) instances.at(-1)?.onend?.();
+      },
+    });
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Continue your journey" }).click();
+  await page
+    .getByRole("button", { name: "Listen & Spell Aloud", exact: true })
+    .click();
+  const start = page.getByRole("button", {
+      name: "Start recording",
+      exact: true,
+    }),
+    stop = page.getByRole("button", { name: "Stop recording", exact: true });
+  await expect(stop).toBeDisabled();
+  await start.click();
+  await expect(start).toBeDisabled();
+  const emit = async (text: string, end = false) =>
+    page.evaluate(
+      ({ text, end }) =>
+        (
+          window as unknown as {
+            recordingTest: (text: string, end: boolean) => void;
+          }
+        ).recordingTest(text, end),
+      { text, end },
+    );
+  await emit("a c");
+  await page.waitForTimeout(600);
+  await emit("", true);
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-recording-starts",
+    "2",
+  );
+  await expect(stop).toBeEnabled();
+  await expect(start).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "Confirm letters & cast spell" }),
+  ).toBeDisabled();
+  await emit("c i d e n");
+  await stop.click();
+  await expect(
+    page.getByLabel("Confirm or correct recognized letters"),
+  ).toHaveValue("accident");
+  await expect(stop).toBeDisabled();
+  await expect(start).toBeEnabled();
+  await page
+    .getByRole("button", { name: "Confirm letters & cast spell" })
+    .click();
+  await expect(page.locator(".feedback")).toContainText("+20 XP");
 });
