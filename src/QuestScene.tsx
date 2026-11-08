@@ -1,3 +1,5 @@
+import { CharacterPortrait } from "./Shop";
+import { itemById, appearance, freshCollection } from "./shop";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   createQuestScene,
@@ -108,13 +110,35 @@ export default function QuestScene({
       });
     }
   }, [resolution]);
-  if (unavailable) return <>{fallback}</>;
+  if (unavailable)
+    return (
+      <section className="quest-fallback">
+        {fallback}
+        <div className="fallback-outfit">
+          <CharacterPortrait
+            equipped={{ ...freshCollection().equipped, ...equipment }}
+          />
+          <div>
+            <strong>
+              Companion: {itemById(appearance(equipment).pet).name}
+            </strong>
+            <p>
+              Animated 3D is unavailable in this browser. Your equipped look is
+              shown here; spelling and progress still work.
+            </p>
+          </div>
+        </div>
+      </section>
+    );
   return (
     <section className="quest-stage-shell" aria-label="Sky Trail quest">
       <div className="quest-stage-title">
         <p className="eyebrow">SPELL THE BRIDGE · CROSS THE SKY</p>
         <h2>{title}</h2>
         <p>{objective}</p>
+        <p className="active-companion">
+          Companion: {itemById(appearance(equipment).pet).name}
+        </p>
       </div>
       <div ref={host} className="quest-stage" />
       <p className="quest-stage-caption">
