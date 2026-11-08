@@ -1,5 +1,5 @@
 import curriculum from "../words-2027-junior.json";
-import { validateCollection, type Collection } from "./shop";
+import { validateCollection, upgradeCollection, type Collection } from "./shop";
 export const words = curriculum.entries;
 import { compareComplexity, wordComplexity } from "./difficulty";
 export { wordComplexity, compareComplexity };
@@ -282,6 +282,7 @@ export function parseBackup(text: string): Progress {
       throw Error("Invalid word progress");
   }
   validateCollection(p.collection, p.xp);
+  if (p.collection) p.collection = upgradeCollection(p.collection);
   if (p.curriculumVersion !== 2) {
     const legacy = [
       ...new Set<string>([

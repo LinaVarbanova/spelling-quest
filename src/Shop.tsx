@@ -46,6 +46,27 @@ export function CharacterPortrait({
           ))}
         </g>
       )}
+      {look.back !== "back-none" && (
+        <g fill={look.backColor} stroke="#e8e4ff" strokeWidth="1.5">
+          {look.back === "back-pack" ? (
+            <rect x="106" y="138" width="60" height="66" rx="12" />
+          ) : (
+            <>
+              {[-1, 1].map((side) => (
+                <path
+                  key={side}
+                  transform={`translate(135 151) scale(${side} 1)`}
+                  d={
+                    look.back === "back-fairy"
+                      ? "M0 0C-102-108-118-14-42 9C-108 67-28 80 0 0Z"
+                      : "M0 0-94-70-78 12-48-2-29 49Z"
+                  }
+                />
+              ))}
+            </>
+          )}
+        </g>
+      )}
       <path
         d="M123 124Q94 143 89 220L138 238 173 217 152 129Z"
         fill="#493e73"
@@ -59,25 +80,40 @@ export function CharacterPortrait({
         strokeWidth="3"
         strokeLinecap="round"
       />
-      {look.crown ? (
-        <path
-          d="M108 87 106 63 122 74 135 52 149 74 164 63 161 90Z"
-          fill={look.hat}
-          stroke="#fff0bf"
-          strokeWidth="2"
-        />
-      ) : (
-        <>
-          <path d="M101 92 137 25 163 95Z" fill={look.hat} />
-          <ellipse
-            cx="133"
-            cy="94"
-            rx="39"
-            ry="7"
-            fill={equipped.hat === "hat-moon" ? "#e2f3ff" : "#f2d397"}
-          />
-        </>
+      {look.hair !== "hair-none" && (
+        <g fill={look.hairColor}>
+          <path d="M111 113Q98 66 135 74Q173 68 160 120L150 105 150 90Q133 108 118 98L118 119Z" />
+          {look.hair !== "hair-chestnut" && (
+            <path
+              d={
+                look.hair === "hair-midnight"
+                  ? "M153 105Q173 122 165 179L153 191 146 171 155 151 147 137Z"
+                  : "M153 104Q185 115 168 147L154 143Z"
+              }
+            />
+          )}
+        </g>
       )}
+      {!look.noHat &&
+        (look.crown ? (
+          <path
+            d="M108 87 106 63 122 74 135 52 149 74 164 63 161 90Z"
+            fill={look.hat}
+            stroke="#fff0bf"
+            strokeWidth="2"
+          />
+        ) : (
+          <>
+            <path d="M101 92 137 25 163 95Z" fill={look.hat} />
+            <ellipse
+              cx="133"
+              cy="94"
+              rx="39"
+              ry="7"
+              fill={equipped.hat === "hat-moon" ? "#e2f3ff" : "#f2d397"}
+            />
+          </>
+        ))}
       <path
         d="M181 224 183 98"
         stroke="#997889"
@@ -106,6 +142,31 @@ export function CharacterPortrait({
               <circle cx="-10" cy="-5" r="9" fill="#fff1d8" />
               <circle cx="10" cy="-5" r="9" fill="#fff1d8" />
             </>
+          ) : look.pet === "pet-bunny" ? (
+            <g fill="#eee0d2">
+              <ellipse rx="22" ry="25" />
+              <ellipse cx="-11" cy="-31" rx="7" ry="23" />
+              <ellipse cx="11" cy="-31" rx="7" ry="23" />
+            </g>
+          ) : look.pet === "pet-cat" ? (
+            <g fill="#b0a0dd">
+              <ellipse rx="23" ry="26" />
+              <path d="M-23-10-22-34-6-23 8-23 23-34 23-9Z" />
+              <path
+                d="M17 22Q49 9 35-8"
+                fill="none"
+                stroke="#b0a0dd"
+                strokeWidth="9"
+              />
+            </g>
+          ) : look.pet === "pet-phoenix" ? (
+            <g fill="#f2ac72">
+              <ellipse rx="21" ry="27" />
+              <path
+                d="M-15 0-40-18-29 17M15 0 40-18 29 17M-10-19-8-42 0-26 11-42 10-19"
+                fill="#ffd28b"
+              />
+            </g>
           ) : (
             <>
               <path
@@ -130,7 +191,7 @@ export default function Shop({
 }: {
   progress: Progress;
   pending: boolean;
-  onAction: (id: string, buy: boolean) => void;
+  onAction: (id: string, buy: boolean, equipNow?: boolean) => void;
 }) {
   const [slot, setSlot] = useState<Slot>("pet"),
     [preview, setPreview] = useState<string | null>(null);
@@ -141,12 +202,13 @@ export default function Shop({
     ? { ...collection.equipped, [selected.slot]: selected.id }
     : collection.equipped;
   return (
-    <section className="panel shop">
+    <section className="panel shop" aria-busy={pending}>
       <div className="shop-heading">
         <div>
           <p className="eyebrow">THE CLOUD MARKET</p>
           <h1>Companions & curiosities</h1>
           <p>Make your spellkeeper your own.</p>
+          {pending && <p aria-live="polite">Saving your collection…</p>}
         </div>
         <strong
           className="token-wallet"
@@ -184,6 +246,8 @@ export default function Shop({
                 ["pet", "Pets"],
                 ["robe", "Robes"],
                 ["hat", "Hats"],
+                ["hair", "Hair"],
+                ["back", "Wings & packs"],
                 ["staff", "Staffs"],
                 ["aura", "Magic effects"],
               ] as [Slot, string][]
@@ -222,6 +286,11 @@ export default function Shop({
                     </button>
                     <h3>{item.name}</h3>
                     <p>{item.description}</p>
+                    {owned && !equipped && (
+                      <small>
+                        Collected, not equipped yet. Equip to use in quests.
+                      </small>
+                    )}
                     <span className="shop-price">
                       {owned
                         ? equipped
@@ -229,14 +298,26 @@ export default function Shop({
                           : "Collected"
                         : `${item.price} tokens`}
                     </span>
+                    {!owned && item.slot === "pet" && (
+                      <button
+                        className="primary"
+                        disabled={pending || tokens < item.price}
+                        onClick={() => onAction(item.id, true, true)}
+                      >
+                        Adopt & equip {item.name} · {item.price} tokens
+                      </button>
+                    )}
                     <button
+                      className={owned && !equipped ? "primary" : ""}
                       disabled={
                         pending || equipped || (!owned && tokens < item.price)
                       }
                       onClick={() => onAction(item.id, !owned)}
                     >
                       {equipped
-                        ? "Equipped"
+                        ? pending
+                          ? "Saving…"
+                          : "Equipped"
                         : owned
                           ? `Equip ${item.name}`
                           : `Buy ${item.name} · ${item.price} tokens`}

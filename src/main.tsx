@@ -225,17 +225,16 @@ function App() {
       /* Optional effect only. */
     }
   }
-  async function customize(id: string, buy: boolean) {
+  async function customize(id: string, buy: boolean, equipNow = false) {
     if (busy.current) return;
     busy.current = true;
     try {
-      const updated = buy
-        ? purchaseItem(progress, id)
-        : equipItem(progress, id);
+      let updated = buy ? purchaseItem(progress, id) : equipItem(progress, id);
+      if (equipNow) updated = equipItem(updated, id);
       const saved = await save(updated);
       setShopMessage(
         saved
-          ? buy
+          ? buy && !equipNow
             ? `${itemById(id).name} collected. Equip it to take it on your journey.`
             : `${itemById(id).name} equipped for your next quest.`
           : "Your look is available this visit. Export a backup to preserve it; device saving failed.",
@@ -1130,7 +1129,9 @@ function App() {
             <Shop
               progress={progress}
               pending={saving}
-              onAction={(id, buy) => void customize(id, buy)}
+              onAction={(id, buy, equipNow) =>
+                void customize(id, buy, equipNow)
+              }
             />
             {shopMessage && (
               <p className="notice" role="status">

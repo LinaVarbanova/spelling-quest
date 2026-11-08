@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { appearance, type Slot } from "./shop";
-import { companionModel } from "./companion-scene";
+import { companionModel, companionPosition } from "./companion-scene";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import {
   palette,
@@ -707,6 +707,7 @@ export function createQuestScene(
       0,
       look.crown ? 1.27 : 1.42,
     );
+    hat.visible = !look.noHat;
     hat.rotation.z = look.crown ? 0 : -0.15;
     if (look.crown)
       for (let k = 0; k < 5; k++) {
@@ -728,6 +729,100 @@ export function createQuestScene(
       1.2,
     );
     brim.rotation.x = Math.PI / 2;
+    brim.visible = !look.noHat;
+    if (look.hair !== "hair-none") {
+      const hair = add(
+        body,
+        new THREE.SphereGeometry(0.215, 10, 7),
+        mat(look.hairColor),
+        0,
+        1.13,
+        -0.045,
+      );
+      hair.scale.set(1.04, 0.9, 1);
+      // A fringe and side locks remain visible under hats; long styles extend down the back.
+      for (const side of [-1, 1])
+        add(
+          body,
+          new THREE.SphereGeometry(0.08, 7, 5),
+          mat(look.hairColor),
+          side * 0.17,
+          1.02,
+          0.02,
+        );
+      if (look.hair === "hair-chestnut")
+        for (let k = 0; k < 6; k++)
+          add(
+            body,
+            new THREE.SphereGeometry(0.075, 6, 5),
+            mat(look.hairColor),
+            Math.cos(k) * 0.15,
+            1.23,
+            Math.sin(k) * 0.15,
+          );
+      else
+        for (let k = 0; k < (look.hair === "hair-midnight" ? 5 : 2); k++)
+          add(
+            body,
+            new THREE.SphereGeometry(0.075, 7, 5),
+            mat(look.hairColor),
+            0,
+            1.02 - k * 0.1,
+            -0.2,
+          );
+    }
+    const backAccessory = new THREE.Group();
+    backAccessory.name = "back-accessory";
+    body.add(backAccessory);
+    if (look.back === "back-pack") {
+      add(
+        backAccessory,
+        new THREE.BoxGeometry(0.4, 0.5, 0.22),
+        mat(look.backColor),
+        0,
+        0.72,
+        -0.32,
+      );
+      add(
+        backAccessory,
+        new THREE.BoxGeometry(0.26, 0.18, 0.05),
+        mat("#e6c69b"),
+        0,
+        0.65,
+        -0.45,
+      );
+    } else if (look.back !== "back-none")
+      for (const side of [-1, 1]) {
+        const shape = new THREE.Shape();
+        shape.moveTo(0, 0);
+        if (look.back === "back-fairy") {
+          shape.bezierCurveTo(
+            side * 0.85,
+            0.9,
+            side * 1.1,
+            0.3,
+            side * 0.48,
+            -0.15,
+          );
+          shape.bezierCurveTo(side * 0.9, -0.7, side * 0.25, -0.65, 0, 0);
+        } else {
+          shape.lineTo(side * 0.95, 0.65);
+          shape.lineTo(side * 0.78, -0.1);
+          shape.lineTo(side * 0.47, 0.04);
+          shape.lineTo(side * 0.3, -0.43);
+          shape.closePath();
+        }
+        const wing = add(
+          backAccessory,
+          new THREE.ShapeGeometry(shape, 8),
+          mat(look.backColor, true),
+          side * 0.08,
+          0.9,
+          -0.21,
+        );
+        (wing.material as THREE.MeshStandardMaterial).side = THREE.DoubleSide;
+        wing.rotation.y = side * 1.0;
+      }
     add(
       body,
       new THREE.CylinderGeometry(0.025, 0.03, 1.35, 5),
@@ -772,14 +867,16 @@ export function createQuestScene(
     hero.position.copy(standAt(0));
     hero.rotation.y = Math.atan2(directionOf(0).x, directionOf(0).z);
     const companion = companionModel(look.pet);
-    companion.position.set(-0.8, 0.15, -0.65);
+    companion.name = "quest-companion";
+    companion.scale.setScalar(1.4);
+    companion.position.copy(companionPosition(hero.position, directionOf(0)));
     companion.traverse((node) => {
       if (node instanceof THREE.Mesh) {
         geometry(node.geometry);
         materials.add(node.material as THREE.Material);
       }
     });
-    hero.add(companion);
+    scene.add(companion);
     const aura = new THREE.Group();
     hero.add(aura);
     if (look.aura === "aura-ring") {
@@ -805,6 +902,8 @@ export function createQuestScene(
         );
       }
     container.dataset.scenePet = look.pet;
+    container.dataset.sceneHair = look.hair;
+    container.dataset.sceneBack = look.back;
     container.dataset.sceneRobe = opts.equipment?.robe || "robe-lilac";
     scene.add(hero);
     type Stone = {
@@ -1307,7 +1406,7 @@ export function createQuestScene(
       last = now;
       time += dt;
       if (motion) {
-        companion.position.y = 0.15 + Math.sin(time * 2.2) * 0.07;
+        backAccessory.rotation.y = Math.sin(time * 2) * 0.06;
         aura.rotation.y = time * 0.45;
       }
       if (state.phase === "intro") {
@@ -1345,6 +1444,16 @@ export function createQuestScene(
           : Math.sin(time * 2) * 0.02;
         body.rotation.z = state.walking ? Math.sin(time * 9) * 0.06 : 0;
       }
+      const companionTarget = companionPosition(
+        hero.position,
+        directionOf(Math.min(state.arrived, count - 1)),
+      );
+      if (motion) companionTarget.y += Math.sin(time * 2.2) * 0.07;
+      companion.position.lerp(
+        companionTarget,
+        motion ? 1 - Math.exp(-9 * dt) : 1,
+      );
+      companion.rotation.y = hero.rotation.y;
       const wispWant = wispFree
         ? hero.position
             .clone()

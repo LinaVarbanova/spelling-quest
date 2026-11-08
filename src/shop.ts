@@ -1,5 +1,13 @@
 import type { Progress } from "./game";
-export const slots = ["pet", "robe", "hat", "staff", "aura"] as const;
+export const slots = [
+  "pet",
+  "robe",
+  "hat",
+  "staff",
+  "aura",
+  "hair",
+  "back",
+] as const;
 export type Slot = (typeof slots)[number];
 export type ShopItem = {
   id: string;
@@ -138,6 +146,102 @@ export const shopItems: ShopItem[] = [
     color: "#a9e7e0",
     description: "A luminous ring of sea-glass magic.",
   },
+  {
+    id: "pet-bunny",
+    slot: "pet",
+    name: "Cloud Bunny",
+    price: 10,
+    color: "#eee0d2",
+    description: "A long-eared cloud explorer who hops beside you.",
+  },
+  {
+    id: "pet-cat",
+    slot: "pet",
+    name: "Starlight Cat",
+    price: 12,
+    color: "#b0a0dd",
+    description: "A lilac cat with a curled, star-tipped tail.",
+  },
+  {
+    id: "pet-phoenix",
+    slot: "pet",
+    name: "Dawn Phoenix",
+    price: 16,
+    color: "#f2ac72",
+    description: "A tiny golden bird with a fiery feather crest.",
+  },
+  {
+    id: "hair-none",
+    slot: "hair",
+    name: "Original look",
+    price: 0,
+    color: "#635194",
+    description: "Your original spellkeeper silhouette.",
+  },
+  {
+    id: "hair-chestnut",
+    slot: "hair",
+    name: "Chestnut curls",
+    price: 4,
+    color: "#8e5946",
+    description: "Soft copper-brown curls that peek below your hat.",
+  },
+  {
+    id: "hair-silver",
+    slot: "hair",
+    name: "Silver sweep",
+    price: 5,
+    color: "#d7e4ee",
+    description: "A swept silver fringe and a short ponytail.",
+  },
+  {
+    id: "hair-midnight",
+    slot: "hair",
+    name: "Midnight braid",
+    price: 5,
+    color: "#343555",
+    description: "An indigo fringe and a long adventuring braid.",
+  },
+  {
+    id: "hat-none",
+    slot: "hat",
+    name: "No hat",
+    price: 0,
+    color: "#635194",
+    description: "Let your chosen hairstyle shine.",
+  },
+  {
+    id: "back-none",
+    slot: "back",
+    name: "Classic cape",
+    price: 0,
+    color: "#5b4a91",
+    description: "Your original travelling cape.",
+  },
+  {
+    id: "back-fairy",
+    slot: "back",
+    name: "Crystal wings",
+    price: 12,
+    color: "#a4e4e0",
+    description: "Sea-glass wings that flutter gently as you travel.",
+  },
+  {
+    id: "back-dragon",
+    slot: "back",
+    name: "Dragon wings",
+    price: 16,
+    color: "#b3a1eb",
+    description: "Violet wings with golden tips.",
+  },
+  {
+    id: "back-pack",
+    slot: "back",
+    name: "Explorer pack",
+    price: 6,
+    color: "#b98763",
+    description: "A little leather pack for every new trail.",
+  },
 ];
 export type Collection = {
   spent: number;
@@ -153,10 +257,27 @@ export const freshCollection = (): Collection => ({
     hat: "hat-mage",
     staff: "staff-sun",
     aura: "aura-none",
+    hair: "hair-none",
+    back: "back-none",
   },
 });
+const newFree = ["hair-none", "back-none", "hat-none"];
+/** Add free slots to pre-expansion saves without altering spending or existing equipment. */
+export function upgradeCollection(c: Collection): Collection {
+  if (
+    c.equipped.hair &&
+    c.equipped.back &&
+    newFree.every((id) => c.owned.includes(id))
+  )
+    return c;
+  return {
+    ...c,
+    owned: [...new Set([...c.owned, ...newFree])],
+    equipped: { ...freshCollection().equipped, ...c.equipped },
+  };
+}
 export const collectionFor = (p: Pick<Progress, "collection">) =>
-  p.collection || freshCollection();
+  p.collection ? upgradeCollection(p.collection) : freshCollection();
 export const tokenBalance = (p: Pick<Progress, "xp" | "collection">) =>
   Math.floor(p.xp / 10) - collectionFor(p).spent;
 export function itemById(id: string) {
@@ -204,22 +325,30 @@ export function validateCollection(value: unknown, xp: number): void {
     Array.isArray(c.equipped)
   )
     throw Error("Invalid shop collection.");
+  const oldSlots = ["pet", "robe", "hat", "staff", "aura"] as const;
+  if (
+    oldSlots.some((slot) => typeof c.equipped[slot] !== "string") ||
+    (c.equipped.hair === undefined) !== (c.equipped.back === undefined)
+  )
+    throw Error("Invalid shop collection.");
+  const legacy = c.equipped.hair === undefined && c.equipped.back === undefined;
+  const normalized = legacy ? upgradeCollection(c) : c;
   if (
     shopItems
       .filter((i) => i.price === 0)
-      .some((i) => !c.owned.includes(i.id)) ||
+      .some((i) => !normalized.owned.includes(i.id)) ||
     c.spent !== c.owned.reduce((sum, id) => sum + itemById(id).price, 0) ||
     slots.some(
       (slot) =>
-        !c.owned.includes(c.equipped[slot]) ||
-        itemById(c.equipped[slot]).slot !== slot,
+        !normalized.owned.includes(normalized.equipped[slot]) ||
+        itemById(normalized.equipped[slot]).slot !== slot,
     ) ||
     Object.keys(c.equipped).some((k) => !slots.includes(k as Slot))
   )
     throw Error("Invalid shop collection.");
 }
 export function appearance(equipped?: Record<Slot, string>) {
-  const e = equipped || freshCollection().equipped;
+  const e = { ...freshCollection().equipped, ...equipped };
   return {
     robe: itemById(e.robe).color,
     hat: itemById(e.hat).color,
@@ -227,5 +356,10 @@ export function appearance(equipped?: Record<Slot, string>) {
     crown: e.hat === "hat-crown",
     pet: e.pet,
     aura: e.aura,
+    hair: e.hair,
+    hairColor: itemById(e.hair).color,
+    back: e.back,
+    backColor: itemById(e.back).color,
+    noHat: e.hat === "hat-none",
   };
 }

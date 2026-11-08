@@ -171,3 +171,31 @@ header nav {
 .reduced-motion .portrait-pet {
   animation: none;
 }
+.shop-card > button + button {
+  margin-top: 10px;
+}
+.quest-stage-title .active-companion {
+  display: inline-block;
+  color: #d7f1e8;
+  font-size: 12px;
+  background: #202238cc;
+  border: 1px solid #a9cabc50;
+  padding: 5px 9px;
+  border-radius: 10px;
+}
+.fallback-outfit {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 14px 24px;
+  background: #24283e;
+}
+.fallback-outfit .character-portrait {
+  width: 100px;
+  flex: 0 0 100px;
+  margin: 0;
+}
+.fallback-outfit p {
+  font-size: 13px;
+  line-height: 1.5;
+}
